@@ -19,6 +19,13 @@ public class CacheStore<CacheKey: Hashable>: ObservableObject, Cacheable {
     public func resolve<Value>(_ key: CacheKey) -> Value { get(key)! }
     
     public func set<Value>(value: Value, forKey key: CacheKey) {
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async {
+                self.set(value: value, forKey: key)
+            }
+            return
+        }
+        
         lock.lock()
         cache[key] = value
         lock.unlock()
