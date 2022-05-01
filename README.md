@@ -10,7 +10,7 @@
 
 Here is a simple application that has two files, an `App` file and `ContentView` file. The `App` contains the `StateObject` `CacheStore`. It then adds the `CacheStore` to the global cache using [`c`](https://github.com/0xOpenBytes/c). `ContentView` can then resolve the cache as an `ObservableObject` which can read or write to the cache. The cache can be injected into the `ContentView` directly, see `ContentView_Previews`, or indirectly, see `ContentView`.
 
-### DemoApp
+### [DemoApp](https://github.com/0xLeif/c-demo)
 ```swift
 import c
 import CacheStore
