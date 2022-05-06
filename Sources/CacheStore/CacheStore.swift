@@ -94,6 +94,10 @@ public class ScopedCacheStore<CacheKey: Hashable, ScopedCacheKey: Hashable>: Cac
 }
 
 public extension CacheStore {
+    func contains(_ key: CacheKey) -> Bool {
+        cache[key] != nil
+    }
+    
     func scope<ScopedCacheKey: Hashable>(
         keyTransformation: c.BiDirectionalTransformation<Key?, ScopedCacheKey?>
     ) -> ScopedCacheStore<Key, ScopedCacheKey> {
