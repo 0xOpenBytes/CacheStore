@@ -65,7 +65,15 @@ public extension CacheStore {
         keyTransformation: c.BiDirectionalTransformation<Key?, ScopedCacheKey?>
     ) -> ScopedCacheStore<Key, ScopedCacheKey> {
         let scopedCacheStore = ScopedCacheStore(keyTransformation: keyTransformation)
+        
         scopedCacheStore.parentCacheStore = self
+        
+        cache.forEach { key, value in
+            guard let scopedKey = keyTransformation.from(key) else { return }
+            
+            scopedCacheStore.set(value: value, forKey: scopedKey)
+        }
+        
         return scopedCacheStore
     }
 }
