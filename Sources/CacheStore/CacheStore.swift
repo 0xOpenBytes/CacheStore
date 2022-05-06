@@ -71,7 +71,7 @@ public extension CacheStore {
         cache.forEach { key, value in
             guard let scopedKey = keyTransformation.from(key) else { return }
             
-            scopedCacheStore.set(value: value, forKey: scopedKey)
+            scopedCacheStore.cache[scopedKey] = value
         }
         
         return scopedCacheStore
