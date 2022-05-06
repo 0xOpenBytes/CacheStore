@@ -32,7 +32,7 @@ public class CacheStore<CacheKey: Hashable>: ObservableObject, Cacheable {
     }
 }
 
-class ScopedCacheStore<CacheKey: Hashable, ScopedCacheKey: Hashable>: CacheStore<ScopedCacheKey> {
+public class ScopedCacheStore<CacheKey: Hashable, ScopedCacheKey: Hashable>: CacheStore<ScopedCacheKey> {
     weak var parentCacheStore: CacheStore<CacheKey>?
     private var keyTransformation: c.BiDirectionalTransformation<CacheKey, ScopedCacheKey>?
     
@@ -48,7 +48,7 @@ class ScopedCacheStore<CacheKey: Hashable, ScopedCacheKey: Hashable>: CacheStore
         super.init(initialValues: initialValues)
     }
     
-    override func set<Value>(value: Value, forKey key: ScopedCacheKey) {
+    override public func set<Value>(value: Value, forKey key: ScopedCacheKey) {
         super.set(value: value, forKey: key)
         
         
@@ -60,7 +60,7 @@ class ScopedCacheStore<CacheKey: Hashable, ScopedCacheKey: Hashable>: CacheStore
     }
 }
 
-extension CacheStore {
+public extension CacheStore {
     func scope<ScopedCacheKey: Hashable>(
         keyTransformation: c.BiDirectionalTransformation<Key, ScopedCacheKey>
     ) -> ScopedCacheStore<Key, ScopedCacheKey> {
