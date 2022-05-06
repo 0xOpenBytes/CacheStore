@@ -109,4 +109,14 @@ public extension CacheStore {
         
         return scopedCacheStore
     }
+    
+    func binding<Value>(
+        _ key: CacheKey,
+        as: Value.Type = Value.self
+    ) -> Binding<Value> {
+        Binding(
+            get: { self.resolve(key) },
+            set: { self.set(value: $0, forKey: key) }
+        )
+    }
 }
