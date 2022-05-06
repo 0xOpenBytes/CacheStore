@@ -10,13 +10,33 @@ public class CacheStore<CacheKey: Hashable>: ObservableObject, Cacheable {
         cache = initialValues
     }
     
-    public func get<Value>(_ key: CacheKey) -> Value? {
+    public func get<Value>(_ key: CacheKey, as: Value.Type = Value.self) -> Value? {
         lock.lock()
         defer { lock.unlock() }
-        return cache[key] as? Value
+        guard let value = cache[key] as? Value else {
+            return nil
+        }
+        
+        let mirror = Mirror(reflecting: value)
+        
+        if mirror.displayStyle != .optional {
+            return value
+        }
+        
+        if mirror.children.isEmpty {
+            return nil
+        }
+        
+        guard let (_, unwrappedValue) = mirror.children.first else { return nil }
+        
+        guard let value = unwrappedValue as? Value else {
+            return nil
+        }
+        
+        return value
     }
     
-    public func resolve<Value>(_ key: CacheKey) -> Value { get(key)! }
+    public func resolve<Value>(_ key: CacheKey, as: Value.Type = Value.self) -> Value { get(key)! }
     
     public func set<Value>(value: Value, forKey key: CacheKey) {
         guard Thread.isMainThread else {
@@ -28,6 +48,19 @@ public class CacheStore<CacheKey: Hashable>: ObservableObject, Cacheable {
         
         lock.lock()
         cache[key] = value
+        lock.unlock()
+    }
+    
+    public func remove(_ key: CacheKey) {
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async {
+                self.remove(key)
+            }
+            return
+        }
+        
+        lock.lock()
+        cache[key] = nil
         lock.unlock()
     }
 }

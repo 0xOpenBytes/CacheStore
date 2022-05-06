@@ -21,7 +21,7 @@ let package = Package(
         // Dependencies declare other packages that this package depends on.
          .package(
             url: "https://github.com/0xOpenBytes/FLet",
-            from: "1.1.0"
+            from: "2.0.0"
         )
     ],
     targets: [
