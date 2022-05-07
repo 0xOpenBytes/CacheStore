@@ -8,7 +8,7 @@ final class CacheStoreTests: XCTestCase {
             case a, b, c
         }
         
-        let cache = CacheStore<HashableKey>(
+        let store = CacheStore<HashableKey>(
             initialValues: [
                 .a: "a"
             ]
@@ -16,17 +16,17 @@ final class CacheStoreTests: XCTestCase {
         
         XCTAssert(
             t.suite {
-                try t.assert(cache.resolve(.a), isEqualTo: "a")
+                try t.assert(store.resolve(.a), isEqualTo: "a")
             }
         )
         
-        cache.set(value: "aa", forKey: .a)
-        cache.set(value: "C", forKey: .c)
+        store.set(value: "aa", forKey: .a)
+        store.set(value: "C", forKey: .c)
         
         XCTAssert(
             t.suite {
-                try t.assert(cache.resolve(.a), isEqualTo: "aa")
-                try t.assert(cache.resolve(.c), isEqualTo: "C")
+                try t.assert(store.resolve(.a), isEqualTo: "aa")
+                try t.assert(store.resolve(.c), isEqualTo: "C")
             }
         )
     }
