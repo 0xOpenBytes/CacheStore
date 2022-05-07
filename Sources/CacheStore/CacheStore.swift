@@ -105,11 +105,11 @@ public extension CacheStore {
     
     func scope<ScopedCacheKey: Hashable>(
         keyTransformation: c.BiDirectionalTransformation<Key?, ScopedCacheKey?>,
-        initialCache: [ScopedCacheKey: Any] = [:]
+        defaultCache: [ScopedCacheKey: Any] = [:]
     ) -> ScopedCacheStore<Key, ScopedCacheKey> {
         let scopedCacheStore = ScopedCacheStore(keyTransformation: keyTransformation)
         
-        scopedCacheStore.cache = initialCache
+        scopedCacheStore.cache = defaultCache
         scopedCacheStore.parentCacheStore = self
         
         cache.forEach { key, value in
@@ -121,7 +121,7 @@ public extension CacheStore {
         return scopedCacheStore
     }
     
-    func strongBinding<Value>(
+    func binding<Value>(
         _ key: CacheKey,
         as: Value.Type = Value.self
     ) -> Binding<Value> {
@@ -131,7 +131,7 @@ public extension CacheStore {
         )
     }
     
-    func binding<Value>(
+    func optionalBinding<Value>(
         _ key: CacheKey,
         as: Value.Type = Value.self
     ) -> Binding<Value?> {
