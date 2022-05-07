@@ -1,4 +1,5 @@
 import c
+import Combine
 import SwiftUI
 
 public class CacheStore<CacheKey: Hashable>: ObservableObject, Cacheable {
@@ -94,15 +95,21 @@ public class ScopedCacheStore<CacheKey: Hashable, ScopedCacheKey: Hashable>: Cac
 }
 
 public extension CacheStore {
+    var publisher: AnyPublisher<CacheStore, Never> {
+        $cache.map(CacheStore.init).eraseToAnyPublisher()
+    }
+    
     func contains(_ key: CacheKey) -> Bool {
         cache[key] != nil
     }
     
     func scope<ScopedCacheKey: Hashable>(
-        keyTransformation: c.BiDirectionalTransformation<Key?, ScopedCacheKey?>
+        keyTransformation: c.BiDirectionalTransformation<Key?, ScopedCacheKey?>,
+        defaultCache: [ScopedCacheKey: Any] = [:]
     ) -> ScopedCacheStore<Key, ScopedCacheKey> {
         let scopedCacheStore = ScopedCacheStore(keyTransformation: keyTransformation)
         
+        scopedCacheStore.cache = defaultCache
         scopedCacheStore.parentCacheStore = self
         
         cache.forEach { key, value in
@@ -120,6 +127,16 @@ public extension CacheStore {
     ) -> Binding<Value> {
         Binding(
             get: { self.resolve(key) },
+            set: { self.set(value: $0, forKey: key) }
+        )
+    }
+    
+    func optionalBinding<Value>(
+        _ key: CacheKey,
+        as: Value.Type = Value.self
+    ) -> Binding<Value?> {
+        Binding(
+            get: { self.get(key) },
             set: { self.set(value: $0, forKey: key) }
         )
     }
