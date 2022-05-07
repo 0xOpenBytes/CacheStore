@@ -2,14 +2,21 @@ import c
 import Combine
 import SwiftUI
 
-public class CacheStore<CacheKey: Hashable>: ObservableObject, Cacheable {
+public class CacheStore<CacheKey: Hashable>: ObservableObject, Cacheable  {
+     
+    // MARK: - Properties
+    
     private var lock: NSLock
     @Published private var cache: [CacheKey: Any]
+    
+    // MARK: - InitializationCacheable
     
     required public init(initialValues: [CacheKey: Any]) {
         lock = NSLock()
         cache = initialValues
     }
+    
+    // MARK: - Cacheable
     
     public func get<Value>(_ key: CacheKey, as: Value.Type = Value.self) -> Value? {
         lock.lock()
@@ -66,33 +73,7 @@ public class CacheStore<CacheKey: Hashable>: ObservableObject, Cacheable {
     }
 }
 
-public class ScopedCacheStore<CacheKey: Hashable, ScopedCacheKey: Hashable>: CacheStore<ScopedCacheKey> {
-    weak var parentCacheStore: CacheStore<CacheKey>?
-    private var keyTransformation: c.BiDirectionalTransformation<CacheKey?, ScopedCacheKey?>?
-    
-    init(
-        keyTransformation: c.BiDirectionalTransformation<CacheKey?, ScopedCacheKey?>
-    ) {
-        self.keyTransformation = keyTransformation
-        
-        super.init(initialValues: [:])
-    }
-    
-    required public init(initialValues: [ScopedCacheKey: Any]) {
-        super.init(initialValues: initialValues)
-    }
-    
-    override public func set<Value>(value: Value, forKey key: ScopedCacheKey) {
-        super.set(value: value, forKey: key)
-        
-        guard
-            let keyTransformation = keyTransformation,
-            let parentKey = keyTransformation.to(key)
-        else { return }
-
-        parentCacheStore?.set(value: value, forKey: parentKey)
-    }
-}
+// MARK: -
 
 public extension CacheStore {
     var publisher: AnyPublisher<CacheStore, Never> {
