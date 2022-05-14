@@ -24,11 +24,11 @@ public class Store<Key: Hashable, Action, XYZ>: ObservableObject, ActionHandling
         self.xyz = xyz
     }
     
-    public func get<Value>(_ key: Key, as: Value.Type) -> Value? {
+    public func get<Value>(_ key: Key, as: Value.Type = Value.self) -> Value? {
         store.get(key)
     }
     
-    public func resolve<Value>(_ key: Key, as: Value.Type) -> Value {
+    public func resolve<Value>(_ key: Key, as: Value.Type = Value.self) -> Value {
         store.resolve(key)
     }
     
