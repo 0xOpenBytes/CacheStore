@@ -17,7 +17,6 @@ public class ScopedCacheStore<Key: Hashable, ScopedKey: Hashable>: CacheStore<Sc
     }
     
     override public func set<Value>(value: Value, forKey key: ScopedKey) {
-        super.set(value: value, forKey: key)
         
         guard
             let keyTransformation = keyTransformation,

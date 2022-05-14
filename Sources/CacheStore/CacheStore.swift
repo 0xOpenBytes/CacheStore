@@ -14,7 +14,6 @@ public class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
     }
 
     public func get<Value>(_ key: Key, as: Value.Type = Value.self) -> Value? {
-        lock.lock()
         defer { lock.unlock() }
         guard let value = cache[key] as? Value else {
             return nil
