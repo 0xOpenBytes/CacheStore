@@ -6,7 +6,7 @@ import SwiftUI
 
 public class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
     private var lock: NSLock
-    @Published private var cache: [Key: Any]
+    @Published var cache: [Key: Any]
     
     required public init(initialValues: [Key: Any]) {
         lock = NSLock()
