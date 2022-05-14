@@ -2,17 +2,18 @@ import c
 import Combine
 import SwiftUI
 
-public class CacheStore<CacheKey: Hashable>: ObservableObject, Cacheable {
+// MARK: -
+
+public class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
     private var lock: NSLock
-    @Published private var cache: [CacheKey: Any]
+    @Published private var cache: [Key: Any]
     
-    required public init(initialValues: [CacheKey: Any]) {
+    required public init(initialValues: [Key: Any]) {
         lock = NSLock()
         cache = initialValues
     }
-    
-    public func get<Value>(_ key: CacheKey, as: Value.Type = Value.self) -> Value? {
-        lock.lock()
+
+    public func get<Value>(_ key: Key, as: Value.Type = Value.self) -> Value? {
         defer { lock.unlock() }
         guard let value = cache[key] as? Value else {
             return nil
@@ -37,9 +38,9 @@ public class CacheStore<CacheKey: Hashable>: ObservableObject, Cacheable {
         return value
     }
     
-    public func resolve<Value>(_ key: CacheKey, as: Value.Type = Value.self) -> Value { get(key)! }
+    public func resolve<Value>(_ key: Key, as: Value.Type = Value.self) -> Value { get(key)! }
     
-    public func set<Value>(value: Value, forKey key: CacheKey) {
+    public func set<Value>(value: Value, forKey key: Key) {
         guard Thread.isMainThread else {
             DispatchQueue.main.async {
                 self.set(value: value, forKey: key)
@@ -52,7 +53,7 @@ public class CacheStore<CacheKey: Hashable>: ObservableObject, Cacheable {
         lock.unlock()
     }
     
-    public func remove(_ key: CacheKey) {
+    public func remove(_ key: Key) {
         guard Thread.isMainThread else {
             DispatchQueue.main.async {
                 self.remove(key)
@@ -66,47 +67,45 @@ public class CacheStore<CacheKey: Hashable>: ObservableObject, Cacheable {
     }
 }
 
-public class ScopedCacheStore<CacheKey: Hashable, ScopedCacheKey: Hashable>: CacheStore<ScopedCacheKey> {
-    weak var parentCacheStore: CacheStore<CacheKey>?
-    private var keyTransformation: c.BiDirectionalTransformation<CacheKey?, ScopedCacheKey?>?
-    
-    init(
-        keyTransformation: c.BiDirectionalTransformation<CacheKey?, ScopedCacheKey?>
-    ) {
-        self.keyTransformation = keyTransformation
-        
-        super.init(initialValues: [:])
-    }
-    
-    required public init(initialValues: [ScopedCacheKey: Any]) {
-        super.init(initialValues: initialValues)
-    }
-    
-    override public func set<Value>(value: Value, forKey key: ScopedCacheKey) {
-        super.set(value: value, forKey: key)
-        
-        guard
-            let keyTransformation = keyTransformation,
-            let parentKey = keyTransformation.to(key)
-        else { return }
-
-        parentCacheStore?.set(value: value, forKey: parentKey)
-    }
-}
+// MARK: -
 
 public extension CacheStore {
+    /// A publisher for the private `cache` that is mapped to a CacheStore
     var publisher: AnyPublisher<CacheStore, Never> {
         $cache.map(CacheStore.init).eraseToAnyPublisher()
     }
     
-    func contains(_ key: CacheKey) -> Bool {
+    /// Checks if the given `key` has a value or not
+    func contains(_ key: Key) -> Bool {
         cache[key] != nil
     }
     
-    func scope<ScopedCacheKey: Hashable>(
-        keyTransformation: c.BiDirectionalTransformation<Key?, ScopedCacheKey?>,
-        defaultCache: [ScopedCacheKey: Any] = [:]
-    ) -> ScopedCacheStore<Key, ScopedCacheKey> {
+    /// Update the value of a key by mutating the value passed into the `updater` parameter
+    func update<Value>(
+        _ key: Key,
+        as: Value.Type = Value.self,
+        updater: (inout Value?) -> Void
+    ) {
+        var value: Value? = get(key)
+        updater(&value)
+        
+        if let value = value {
+            set(value: value, forKey: key)
+        }
+    }
+    
+    /// Returns a Dictionary containing only the key value pairs where the value is the same type as the generic type `Value`
+    func valuesInCache<Value>(
+        ofType: Value.Type = Value.self
+    ) -> [Key: Value] {
+        cache.compactMapValues { $0 as? Value }
+    }
+    
+    /// Creates a `ScopedCacheStore` with the given key transformation and default cache
+    func scope<ScopedKey: Hashable>(
+        keyTransformation: c.BiDirectionalTransformation<Key?, ScopedKey?>,
+        defaultCache: [ScopedKey: Any] = [:]
+    ) -> ScopedCacheStore<Key, ScopedKey> {
         let scopedCacheStore = ScopedCacheStore(keyTransformation: keyTransformation)
         
         scopedCacheStore.cache = defaultCache
@@ -121,8 +120,9 @@ public extension CacheStore {
         return scopedCacheStore
     }
     
+    /// Creates a `Binding` for the given `Key`
     func binding<Value>(
-        _ key: CacheKey,
+        _ key: Key,
         as: Value.Type = Value.self
     ) -> Binding<Value> {
         Binding(
@@ -131,8 +131,9 @@ public extension CacheStore {
         )
     }
     
+    /// Creates a `Binding` for the given `Key` where the value is Optional
     func optionalBinding<Value>(
-        _ key: CacheKey,
+        _ key: Key,
         as: Value.Type = Value.self
     ) -> Binding<Value?> {
         Binding(
