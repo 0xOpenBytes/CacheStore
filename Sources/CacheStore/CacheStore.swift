@@ -105,7 +105,7 @@ public extension CacheStore {
     func scope<ScopedKey: Hashable>(
         keyTransformation: c.BiDirectionalTransformation<Key?, ScopedKey?>,
         defaultCache: [ScopedKey: Any] = [:]
-    ) -> ScopedCacheStore<Key, ScopedKey> {
+    ) -> CacheStore<ScopedKey> {
         let scopedCacheStore = ScopedCacheStore(keyTransformation: keyTransformation)
         
         scopedCacheStore.cache = defaultCache

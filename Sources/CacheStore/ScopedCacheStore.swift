@@ -1,6 +1,6 @@
 import c
 
-public class ScopedCacheStore<Key: Hashable, ScopedKey: Hashable>: CacheStore<ScopedKey> {
+class ScopedCacheStore<Key: Hashable, ScopedKey: Hashable>: CacheStore<ScopedKey> {
     weak var parentCacheStore: CacheStore<Key>?
     private var keyTransformation: c.BiDirectionalTransformation<Key?, ScopedKey?>?
     
@@ -12,11 +12,11 @@ public class ScopedCacheStore<Key: Hashable, ScopedKey: Hashable>: CacheStore<Sc
         super.init(initialValues: [:])
     }
     
-    required public init(initialValues: [ScopedKey: Any]) {
+    required init(initialValues: [ScopedKey: Any]) {
         super.init(initialValues: initialValues)
     }
     
-    override public func set<Value>(value: Value, forKey key: ScopedKey) {
+    override func set<Value>(value: Value, forKey key: ScopedKey) {
         super.set(value: value, forKey: key)
         
         guard

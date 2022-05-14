@@ -56,7 +56,7 @@ public class Store<Key: Hashable, Action, XYZ>: ObservableObject, ActionHandling
         xyzTransformation: c.UniDirectionalTransformation<XYZ, ScopedXYZ>,
         actionHandler: StateActionHandling<ScopedKey, ScopedAction, ScopedXYZ>? = nil,
         defaultCache: [ScopedKey: Any] = [:]
-    ) -> ScopedStore<Key, ScopedKey, Action, ScopedAction, XYZ, ScopedXYZ> {
+    ) -> Store<ScopedKey, ScopedAction, ScopedXYZ> {
         let scopedStore = ScopedStore<Key, ScopedKey, Action, ScopedAction, XYZ, ScopedXYZ> (
             initialValues: [:],
             actionHandler: { _, _, _ in },
