@@ -66,7 +66,7 @@ public class Store<Key: Hashable, Action, XYZ>: ObservableObject, ActionHandling
         scopedStore.store.cache = defaultCache
         scopedStore.parentStore = self
         scopedStore.actionHandler = { (store: inout CacheStore<ScopedKey>, action: ScopedAction, xyz: ScopedXYZ) in
-            actionHandler?(&store, action, xyz)
+            actionHandler?(&scopedStore.store, action, xyz)
             
             if let parentAction = actionTransformation(action) {
                 scopedStore.parentStore?.handle(action: parentAction)
