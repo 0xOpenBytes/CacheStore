@@ -28,6 +28,13 @@ class ScopedCacheStore<Key: Hashable, ScopedKey: Hashable>: CacheStore<ScopedKey
     }
     
     override func update<Value>(_ key: ScopedKey, as: Value.Type = Value.self, updater: (inout Value?) -> Void) {
-        <#code#>
+        super.update(key, updater: updater)
+        
+        guard
+            let keyTransformation = keyTransformation,
+            let parentKey = keyTransformation.to(key)
+        else { return }
+        
+        parentCacheStore?.update(parentKey, updater: updater)
     }
 }
