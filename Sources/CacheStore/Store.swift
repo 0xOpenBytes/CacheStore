@@ -92,7 +92,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
     }
     
     /// Creates a `ScopedStore`
-    public func actionlessScope<ScopedKey: Hashable, Void, ScopedDependency>(
+    public func actionlessScope<ScopedKey: Hashable, ScopedDependency>(
         keyTransformation: c.BiDirectionalTransformation<Key?, ScopedKey?>,
         dependencyTransformation: (Dependency) -> ScopedDependency,
         defaultCache: [ScopedKey: Any] = [:]
@@ -120,5 +120,37 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
         as: Value.Type = Value.self
     ) -> Binding<Value?> {
         store.optionalBinding(key)
+    }
+}
+
+// MARK: - Void Dependency
+
+public extension Store {
+    /// Creates a `ScopedStore`
+    func scope<ScopedKey: Hashable, ScopedAction>(
+        keyTransformation: c.BiDirectionalTransformation<Key?, ScopedKey?>,
+        actionHandler: @escaping StateActionHandling<ScopedKey, ScopedAction, Void>,
+        defaultCache: [ScopedKey: Any] = [:],
+        actionTransformation: @escaping (ScopedAction?) -> Action? = { _ in nil }
+    ) -> Store<ScopedKey, ScopedAction, Void> {
+        scope(
+            keyTransformation: keyTransformation,
+            actionHandler: actionHandler,
+            dependencyTransformation: { _ in () },
+            defaultCache: defaultCache,
+            actionTransformation: actionTransformation
+        )
+    }
+    
+    /// Creates a `ScopedStore`
+    func actionlessScope<ScopedKey: Hashable>(
+        keyTransformation: c.BiDirectionalTransformation<Key?, ScopedKey?>,
+        defaultCache: [ScopedKey: Any] = [:]
+    ) -> Store<ScopedKey, Void, Void> {
+        actionlessScope(
+            keyTransformation: keyTransformation,
+            dependencyTransformation: { _ in () },
+            defaultCache: defaultCache
+        )
     }
 }
