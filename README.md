@@ -6,6 +6,10 @@
 
 `CacheStore` is a SwiftUI framework to help with state. Define keyed values that you can share locally or globally in your projects. `CacheStore` uses [`c`](https://github.com/0xOpenBytes/c), which a simple composition framework. [`c`](https://github.com/0xOpenBytes/c) has the ability to create transformations that are either unidirectional or bidirectional. There is also a cache that values can be set and resolved, which is used in `CacheStore`.
 
+## Objects 
+- `CacheStore`: An object that needs a defined Key to get and set values.
+- `Store`: An object that needs a defined Key, Actions, and Dependencies. (Preferred)
+
 ## Store
 
 A `Store` is an object that you send actions to and read state from. Stores use a private `CacheStore` to manage state behind the scenes. All state changes must be defined in a `StoreActionHandler` where the state gets modified depending on an action.
