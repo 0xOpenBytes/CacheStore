@@ -38,19 +38,19 @@ public class Store<Key: Hashable, Action, XYZ>: ObservableObject, ActionHandling
     }
     
     /// Checks if the given `key` has a value or not
-    func contains(_ key: Key) -> Bool {
+    public func contains(_ key: Key) -> Bool {
         store.contains(key)
     }
     
     /// Returns a Dictionary containing only the key value pairs where the value is the same type as the generic type `Value`
-    func valuesInCache<Value>(
+    public func valuesInCache<Value>(
         ofType type: Value.Type = Value.self
     ) -> [Key: Value] {
         store.valuesInCache(ofType: type)
     }
     
     /// Creates a `ScopedStore`
-    func scope<ScopedKey: Hashable, ScopedAction, ScopedXYZ>(
+    public func scope<ScopedKey: Hashable, ScopedAction, ScopedXYZ>(
         keyTransformation: c.UniDirectionalTransformation<Key?, ScopedKey?>,
         actionTransformation: @escaping c.UniDirectionalTransformation<ScopedAction?, Action?>,
         xyzTransformation: c.UniDirectionalTransformation<XYZ, ScopedXYZ>,
@@ -83,7 +83,7 @@ public class Store<Key: Hashable, Action, XYZ>: ObservableObject, ActionHandling
     }
     
     /// Creates a `Binding` for the given `Key`
-    func binding<Value>(
+    public func binding<Value>(
         _ key: Key,
         as: Value.Type = Value.self
     ) -> Binding<Value> {
@@ -91,7 +91,7 @@ public class Store<Key: Hashable, Action, XYZ>: ObservableObject, ActionHandling
     }
     
     /// Creates a `Binding` for the given `Key` where the value is Optional
-    func optionalBinding<Value>(
+    public func optionalBinding<Value>(
         _ key: Key,
         as: Value.Type = Value.self
     ) -> Binding<Value?> {
