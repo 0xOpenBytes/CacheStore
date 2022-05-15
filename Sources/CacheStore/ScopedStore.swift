@@ -7,7 +7,7 @@ class ScopedStore<
     
     required init(
         initialValues: [ScopedKey : Any],
-        actionHandler: @escaping StateActionHandling<ScopedKey, ScopedAction, ScopedDependency>,
+        actionHandler: StoreActionHandler<ScopedKey, ScopedAction, ScopedDependency>,
         dependency: ScopedDependency
     ) {
         super.init(initialValues: initialValues, actionHandler: actionHandler, dependency: dependency)

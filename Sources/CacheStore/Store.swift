@@ -7,7 +7,7 @@ import SwiftUI
 public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHandling {
     private var lock: NSLock
     private var store: CacheStore<Key>
-    private var actionHandler: StateActionHandling<Key, Action, Dependency>
+    private var actionHandler: StoreActionHandler<Key, Action, Dependency>
     private let dependency: Dependency
     
     /// A publisher for the private `cache` that is mapped to a CacheStore
@@ -17,7 +17,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
     
     public required init(
         initialValues: [Key: Any],
-        actionHandler: @escaping StateActionHandling<Key, Action, Dependency>,
+        actionHandler: StoreActionHandler<Key, Action, Dependency>,
         dependency: Dependency
     ) {
         lock = NSLock()
@@ -46,7 +46,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
         
         lock.lock()
         objectWillChange.send()
-        actionHandler(&store, action, dependency)
+        actionHandler.handle(store: &store, action: action, dependency: dependency)
         lock.unlock()
     }
     
@@ -65,14 +65,14 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
     /// Creates a `ScopedStore`
     public func scope<ScopedKey: Hashable, ScopedAction, ScopedDependency>(
         keyTransformation: c.BiDirectionalTransformation<Key?, ScopedKey?>,
-        actionHandler: @escaping StateActionHandling<ScopedKey, ScopedAction, ScopedDependency>,
+        actionHandler: StoreActionHandler<ScopedKey, ScopedAction, ScopedDependency>,
         dependencyTransformation: (Dependency) -> ScopedDependency,
         defaultCache: [ScopedKey: Any] = [:],
         actionTransformation: @escaping (ScopedAction?) -> Action? = { _ in nil }
     ) -> Store<ScopedKey, ScopedAction, ScopedDependency> {
         let scopedStore = ScopedStore<Key, ScopedKey, Action, ScopedAction, Dependency, ScopedDependency> (
             initialValues: [:],
-            actionHandler: { _, _, _ in },
+            actionHandler: StoreActionHandler<ScopedKey, ScopedAction, ScopedDependency>.none,
             dependency: dependencyTransformation(dependency)
         )
         
@@ -83,8 +83,8 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
         
         scopedStore.store = scopedCacheStore
         scopedStore.parentStore = self
-        scopedStore.actionHandler = { (store: inout CacheStore<ScopedKey>, action: ScopedAction, dependency: ScopedDependency) in
-            actionHandler(&store, action, dependency)
+        scopedStore.actionHandler = StoreActionHandler { (store: inout CacheStore<ScopedKey>, action: ScopedAction, dependency: ScopedDependency) in
+            actionHandler.handle(store: &store, action: action, dependency: dependency)
             
             if let parentAction = actionTransformation(action) {
                 scopedStore.parentStore?.handle(action: parentAction)
@@ -108,7 +108,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
     ) -> Store<ScopedKey, Void, ScopedDependency> {
         scope(
             keyTransformation: keyTransformation,
-            actionHandler: { _, _, _ in },
+            actionHandler: StoreActionHandler<ScopedKey, Void, ScopedDependency>.none,
             dependencyTransformation: dependencyTransformation,
             defaultCache: defaultCache,
             actionTransformation: { _ in nil }
@@ -138,7 +138,7 @@ public extension Store {
     /// Creates a `ScopedStore`
     func scope<ScopedKey: Hashable, ScopedAction>(
         keyTransformation: c.BiDirectionalTransformation<Key?, ScopedKey?>,
-        actionHandler: @escaping StateActionHandling<ScopedKey, ScopedAction, Void>,
+        actionHandler: StoreActionHandler<ScopedKey, ScopedAction, Void>,
         defaultCache: [ScopedKey: Any] = [:],
         actionTransformation: @escaping (ScopedAction?) -> Action? = { _ in nil }
     ) -> Store<ScopedKey, ScopedAction, Void> {
