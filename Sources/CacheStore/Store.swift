@@ -5,6 +5,7 @@ import SwiftUI
 // MARK: -
 
 public class Store<Key: Hashable, Action, XYZ>: ObservableObject, ActionHandling {
+    private var lock: NSLock
     var store: CacheStore<Key>
     private var actionHandler: StateActionHandling<Key, Action, XYZ>
     private let xyz: XYZ
@@ -19,6 +20,7 @@ public class Store<Key: Hashable, Action, XYZ>: ObservableObject, ActionHandling
         actionHandler: @escaping StateActionHandling<Key, Action, XYZ>,
         xyz: XYZ
     ) {
+        lock = NSLock()
         store = CacheStore(initialValues: initialValues)
         self.actionHandler = actionHandler
         self.xyz = xyz
@@ -33,8 +35,10 @@ public class Store<Key: Hashable, Action, XYZ>: ObservableObject, ActionHandling
     }
     
     public func handle(action: Action) {
+        lock.lock()
         objectWillChange.send()
         actionHandler(&store, action, xyz)
+        lock.unlock()
     }
     
     /// Checks if the given `key` has a value or not
