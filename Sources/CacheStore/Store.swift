@@ -55,7 +55,7 @@ public class Store<Key: Hashable, Action, XYZ>: ObservableObject, ActionHandling
     
     /// Creates a `ScopedStore`
     public func scope<ScopedKey: Hashable, ScopedAction, ScopedXYZ>(
-        keyTransformation: c.UniDirectionalTransformation<Key?, ScopedKey?>,
+        keyTransformation: c.BiDirectionalTransformation<Key?, ScopedKey?>,
         actionTransformation: @escaping c.UniDirectionalTransformation<ScopedAction?, Action?>,
         xyzTransformation: c.UniDirectionalTransformation<XYZ, ScopedXYZ>,
         actionHandler: StateActionHandling<ScopedKey, ScopedAction, ScopedXYZ>? = nil,
@@ -67,10 +67,15 @@ public class Store<Key: Hashable, Action, XYZ>: ObservableObject, ActionHandling
             xyz: xyzTransformation(xyz)
         )
         
-        scopedStore.store.cache = defaultCache
+        let scopedCacheStore = store.scope(
+            keyTransformation: keyTransformation,
+            defaultCache: defaultCache
+        )
+        
+        scopedStore.store = scopedCacheStore
         scopedStore.parentStore = self
         scopedStore.actionHandler = { (store: inout CacheStore<ScopedKey>, action: ScopedAction, xyz: ScopedXYZ) in
-            actionHandler?(&scopedStore.store, action, xyz)
+            actionHandler?(&store, action, xyz)
             
             if let parentAction = actionTransformation(action) {
                 scopedStore.parentStore?.handle(action: parentAction)
@@ -78,7 +83,7 @@ public class Store<Key: Hashable, Action, XYZ>: ObservableObject, ActionHandling
         }
         
         store.cache.forEach { key, value in
-            guard let scopedKey = keyTransformation(key) else { return }
+            guard let scopedKey = keyTransformation.from(key) else { return }
             
             scopedStore.store.cache[scopedKey] = value
         }
