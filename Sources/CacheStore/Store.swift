@@ -26,10 +26,12 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
         self.dependency = dependency
     }
     
+    /// Get the value in the `cache` using the `key`. This returns an optional value. If the value is `nil`, that means either the value doesn't exist or the value is not able to be casted as `Value`.
     public func get<Value>(_ key: Key, as: Value.Type = Value.self) -> Value? {
         store.get(key)
     }
     
+    /// Resolve the value in the `cache` using the `key`. This function uses `get` and force casts the value. This should only be used when you know the value is always in the `cache`.
     public func resolve<Value>(_ key: Key, as: Value.Type = Value.self) -> Value {
         store.resolve(key)
     }
