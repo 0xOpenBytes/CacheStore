@@ -53,6 +53,20 @@ public class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
         lock.unlock()
     }
     
+    /// Update the value of a key by mutating the value passed into the `updater` parameter
+    public func update<Value>(
+        _ key: Key,
+        as: Value.Type = Value.self,
+        updater: (inout Value?) -> Void
+    ) {
+        var value: Value? = get(key)
+        updater(&value)
+        
+        if let value = value {
+            set(value: value, forKey: key)
+        }
+    }
+    
     public func remove(_ key: Key) {
         guard Thread.isMainThread else {
             DispatchQueue.main.async {
@@ -78,20 +92,6 @@ public extension CacheStore {
     /// Checks if the given `key` has a value or not
     func contains(_ key: Key) -> Bool {
         cache[key] != nil
-    }
-    
-    /// Update the value of a key by mutating the value passed into the `updater` parameter
-    func update<Value>(
-        _ key: Key,
-        as: Value.Type = Value.self,
-        updater: (inout Value?) -> Void
-    ) {
-        var value: Value? = get(key)
-        updater(&value)
-        
-        if let value = value {
-            set(value: value, forKey: key)
-        }
     }
     
     /// Returns a Dictionary containing only the key value pairs where the value is the same type as the generic type `Value`
