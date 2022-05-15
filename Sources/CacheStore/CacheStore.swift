@@ -6,7 +6,7 @@ import SwiftUI
 
 public class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
     private var lock: NSLock
-    @Published private var cache: [Key: Any]
+    @Published var cache: [Key: Any]
     
     required public init(initialValues: [Key: Any]) {
         lock = NSLock()
@@ -53,6 +53,20 @@ public class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
         lock.unlock()
     }
     
+    /// Update the value of a key by mutating the value passed into the `updater` parameter
+    public func update<Value>(
+        _ key: Key,
+        as: Value.Type = Value.self,
+        updater: (inout Value?) -> Void
+    ) {
+        var value: Value? = get(key)
+        updater(&value)
+        
+        if let value = value {
+            set(value: value, forKey: key)
+        }
+    }
+    
     public func remove(_ key: Key) {
         guard Thread.isMainThread else {
             DispatchQueue.main.async {
@@ -80,20 +94,6 @@ public extension CacheStore {
         cache[key] != nil
     }
     
-    /// Update the value of a key by mutating the value passed into the `updater` parameter
-    func update<Value>(
-        _ key: Key,
-        as: Value.Type = Value.self,
-        updater: (inout Value?) -> Void
-    ) {
-        var value: Value? = get(key)
-        updater(&value)
-        
-        if let value = value {
-            set(value: value, forKey: key)
-        }
-    }
-    
     /// Returns a Dictionary containing only the key value pairs where the value is the same type as the generic type `Value`
     func valuesInCache<Value>(
         ofType: Value.Type = Value.self
@@ -105,7 +105,7 @@ public extension CacheStore {
     func scope<ScopedKey: Hashable>(
         keyTransformation: c.BiDirectionalTransformation<Key?, ScopedKey?>,
         defaultCache: [ScopedKey: Any] = [:]
-    ) -> ScopedCacheStore<Key, ScopedKey> {
+    ) -> CacheStore<ScopedKey> {
         let scopedCacheStore = ScopedCacheStore(keyTransformation: keyTransformation)
         
         scopedCacheStore.cache = defaultCache
