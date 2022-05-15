@@ -4,11 +4,11 @@ import SwiftUI
 
 // MARK: -
 
-public class Store<Key: Hashable, Action, XYZ>: ObservableObject, ActionHandling {
+public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHandling {
     private var lock: NSLock
     var store: CacheStore<Key>
-    private var actionHandler: StateActionHandling<Key, Action, XYZ>
-    private let xyz: XYZ
+    private var actionHandler: StateActionHandling<Key, Action, Dependency>
+    private let dependency: Dependency
     
     /// A publisher for the private `cache` that is mapped to a CacheStore
     var publisher: AnyPublisher<CacheStore<Key>, Never> {
@@ -17,13 +17,13 @@ public class Store<Key: Hashable, Action, XYZ>: ObservableObject, ActionHandling
     
     public required init(
         initialValues: [Key: Any],
-        actionHandler: @escaping StateActionHandling<Key, Action, XYZ>,
-        xyz: XYZ
+        actionHandler: @escaping StateActionHandling<Key, Action, Dependency>,
+        dependency: Dependency
     ) {
         lock = NSLock()
         store = CacheStore(initialValues: initialValues)
         self.actionHandler = actionHandler
-        self.xyz = xyz
+        self.dependency = dependency
     }
     
     public func get<Value>(_ key: Key, as: Value.Type = Value.self) -> Value? {
@@ -37,7 +37,7 @@ public class Store<Key: Hashable, Action, XYZ>: ObservableObject, ActionHandling
     public func handle(action: Action) {
         lock.lock()
         objectWillChange.send()
-        actionHandler(&store, action, xyz)
+        actionHandler(&store, action, dependency)
         lock.unlock()
     }
     
@@ -54,17 +54,17 @@ public class Store<Key: Hashable, Action, XYZ>: ObservableObject, ActionHandling
     }
     
     /// Creates a `ScopedStore`
-    public func scope<ScopedKey: Hashable, ScopedAction, ScopedXYZ>(
+    public func scope<ScopedKey: Hashable, ScopedAction, ScopedDependency>(
         keyTransformation: c.BiDirectionalTransformation<Key?, ScopedKey?>,
-        actionTransformation: @escaping c.UniDirectionalTransformation<ScopedAction?, Action?>,
-        xyzTransformation: c.UniDirectionalTransformation<XYZ, ScopedXYZ>,
-        actionHandler: StateActionHandling<ScopedKey, ScopedAction, ScopedXYZ>? = nil,
-        defaultCache: [ScopedKey: Any] = [:]
-    ) -> Store<ScopedKey, ScopedAction, ScopedXYZ> {
-        let scopedStore = ScopedStore<Key, ScopedKey, Action, ScopedAction, XYZ, ScopedXYZ> (
+        actionHandler: @escaping StateActionHandling<ScopedKey, ScopedAction, ScopedDependency>,
+        dependencyTransformation: (Dependency) -> ScopedDependency,
+        defaultCache: [ScopedKey: Any] = [:],
+        actionTransformation: @escaping (ScopedAction?) -> Action? = { _ in nil }
+    ) -> Store<ScopedKey, ScopedAction, ScopedDependency> {
+        let scopedStore = ScopedStore<Key, ScopedKey, Action, ScopedAction, Dependency, ScopedDependency> (
             initialValues: [:],
             actionHandler: { _, _, _ in },
-            xyz: xyzTransformation(xyz)
+            dependency: dependencyTransformation(dependency)
         )
         
         let scopedCacheStore = store.scope(
@@ -74,8 +74,8 @@ public class Store<Key: Hashable, Action, XYZ>: ObservableObject, ActionHandling
         
         scopedStore.store = scopedCacheStore
         scopedStore.parentStore = self
-        scopedStore.actionHandler = { (store: inout CacheStore<ScopedKey>, action: ScopedAction, xyz: ScopedXYZ) in
-            actionHandler?(&store, action, xyz)
+        scopedStore.actionHandler = { (store: inout CacheStore<ScopedKey>, action: ScopedAction, dependency: ScopedDependency) in
+            actionHandler(&store, action, dependency)
             
             if let parentAction = actionTransformation(action) {
                 scopedStore.parentStore?.handle(action: parentAction)
@@ -89,6 +89,21 @@ public class Store<Key: Hashable, Action, XYZ>: ObservableObject, ActionHandling
         }
         
         return scopedStore
+    }
+    
+    /// Creates a `ScopedStore`
+    public func actionlessScope<ScopedKey: Hashable, Void, ScopedDependency>(
+        keyTransformation: c.BiDirectionalTransformation<Key?, ScopedKey?>,
+        dependencyTransformation: (Dependency) -> ScopedDependency,
+        defaultCache: [ScopedKey: Any] = [:]
+    ) -> Store<ScopedKey, Void, ScopedDependency> {
+        scope(
+            keyTransformation: keyTransformation,
+            actionHandler: { _, _, _ in },
+            dependencyTransformation: dependencyTransformation,
+            defaultCache: defaultCache,
+            actionTransformation: { _ in nil }
+        )
     }
     
     /// Creates a `Binding` for the given `Key`

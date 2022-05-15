@@ -3,16 +3,16 @@ import c
 class ScopedStore<
     Key: Hashable, ScopedKey: Hashable,
     Action, ScopedAction,
-    XYZ, ScopedXYZ
->: Store<ScopedKey, ScopedAction, ScopedXYZ> {
-    weak var parentStore: Store<Key, Action, XYZ>?
+    Dependency, ScopedDependency
+>: Store<ScopedKey, ScopedAction, ScopedDependency> {
+    weak var parentStore: Store<Key, Action, Dependency>?
     
     required init(
         initialValues: [ScopedKey : Any],
-        actionHandler: @escaping StateActionHandling<ScopedKey, ScopedAction, ScopedXYZ>,
-        xyz: ScopedXYZ
+        actionHandler: @escaping StateActionHandling<ScopedKey, ScopedAction, ScopedDependency>,
+        dependency: ScopedDependency
     ) {
-        super.init(initialValues: initialValues, actionHandler: actionHandler, xyz: xyz)
+        super.init(initialValues: initialValues, actionHandler: actionHandler, dependency: dependency)
     }
 }
 
