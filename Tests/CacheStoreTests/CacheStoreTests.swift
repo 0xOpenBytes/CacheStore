@@ -4,7 +4,7 @@ import XCTest
 @testable import CacheStore
 
 final class CacheStoreTests: XCTestCase {
-    func testExample() throws {
+    func testExample() {
         enum HashableKey: Hashable {
             case a, b, c
         }
