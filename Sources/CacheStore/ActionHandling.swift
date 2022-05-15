@@ -1,6 +1,7 @@
 public protocol ActionHandling {
     associatedtype Action
     
+    /// Handle the given `Action`
     func handle(action: Action)
 }
 

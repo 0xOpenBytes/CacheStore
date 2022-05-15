@@ -1,5 +1,3 @@
-import c
-
 class ScopedStore<
     Key: Hashable, ScopedKey: Hashable,
     Action, ScopedAction,

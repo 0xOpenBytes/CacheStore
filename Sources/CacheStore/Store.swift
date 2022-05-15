@@ -6,12 +6,12 @@ import SwiftUI
 
 public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHandling {
     private var lock: NSLock
-    var store: CacheStore<Key>
+    private var store: CacheStore<Key>
     private var actionHandler: StateActionHandling<Key, Action, Dependency>
     private let dependency: Dependency
     
     /// A publisher for the private `cache` that is mapped to a CacheStore
-    var publisher: AnyPublisher<CacheStore<Key>, Never> {
+    public var publisher: AnyPublisher<CacheStore<Key>, Never> {
         store.publisher
     }
     
@@ -35,6 +35,13 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
     }
     
     public func handle(action: Action) {
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async {
+                self.handle(action: action)
+            }
+            return
+        }
+        
         lock.lock()
         objectWillChange.send()
         actionHandler(&store, action, dependency)
@@ -91,7 +98,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
         return scopedStore
     }
     
-    /// Creates a `ScopedStore`
+    /// Creates an Actionless `ScopedStore`
     public func actionlessScope<ScopedKey: Hashable, ScopedDependency>(
         keyTransformation: c.BiDirectionalTransformation<Key?, ScopedKey?>,
         dependencyTransformation: (Dependency) -> ScopedDependency,
