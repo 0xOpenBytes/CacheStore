@@ -52,7 +52,34 @@ public class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
         cache[key] = value
         lock.unlock()
     }
+
+    @discardableResult
+    public func require(keys: Set<Key>) throws -> Self {
+        let missingKeys = keys
+            .filter { contains($0) == false }
+
+        guard missingKeys.isEmpty else {
+            throw c.MissingRequiredKeysError(keys: missingKeys)
+        }
+        
+        return self
+    }
     
+    @discardableResult
+    public func require(_ key: Key) throws -> Self {
+        try require(keys: [key])
+    }
+    
+    public func contains(_ key: Key) -> Bool {
+        cache[key] != nil
+    }
+    
+    public func valuesInCache<Value>(
+        ofType: Value.Type = Value.self
+    ) -> [Key: Value] {
+        cache.compactMapValues { $0 as? Value }
+    }
+
     /// Update the value of a key by mutating the value passed into the `updater` parameter
     public func update<Value>(
         _ key: Key,
@@ -87,18 +114,6 @@ public extension CacheStore {
     /// A publisher for the private `cache` that is mapped to a CacheStore
     var publisher: AnyPublisher<CacheStore, Never> {
         $cache.map(CacheStore.init).eraseToAnyPublisher()
-    }
-    
-    /// Checks if the given `key` has a value or not
-    func contains(_ key: Key) -> Bool {
-        cache[key] != nil
-    }
-    
-    /// Returns a Dictionary containing only the key value pairs where the value is the same type as the generic type `Value`
-    func valuesInCache<Value>(
-        ofType: Value.Type = Value.self
-    ) -> [Key: Value] {
-        cache.compactMapValues { $0 as? Value }
     }
     
     /// Creates a `ScopedCacheStore` with the given key transformation and default cache
