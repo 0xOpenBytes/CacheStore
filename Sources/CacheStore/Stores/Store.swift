@@ -36,6 +36,22 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
         store.resolve(key)
     }
     
+    /// Checks to make sure the cache has the required keys, otherwise it will throw an error
+    @discardableResult
+    public func require(keys: Set<Key>) throws -> Self {
+        try store.require(keys: keys)
+        
+        return self
+    }
+    
+    /// Checks to make sure the cache has the required key, otherwise it will throw an error
+    @discardableResult
+    public func require(_ key: Key) throws -> Self {
+        try store.require(keys: [key])
+        
+        return self
+    }
+    
     public func handle(action: Action) {
         guard Thread.isMainThread else {
             DispatchQueue.main.async {

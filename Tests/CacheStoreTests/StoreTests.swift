@@ -9,6 +9,7 @@ class StoreTests: XCTestCase {
             t.suite(named: "Testing Store") {
                 enum StoreKey {
                     case isOn
+                    case someRandomValue
                 }
                 
                 enum Action {
@@ -22,12 +23,14 @@ class StoreTests: XCTestCase {
                     }
                 }
                 
-                let store = Store<StoreKey, Action, Void>(
+                let store = try Store<StoreKey, Action, Void>(
                     initialValues: [.isOn: false],
                     actionHandler: actionHandler,
                     dependency: ()
                 )
+                    .require(.isOn)
                 
+                try t.assert(store.contains(.isOn), isEqualTo: true)
                 try t.assert(store.get(.isOn), isEqualTo: false)
                 
                 store.handle(action: .toggle)
