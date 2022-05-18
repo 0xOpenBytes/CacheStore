@@ -154,34 +154,6 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
             set: { self.handle(action: using($0)) }
         )
     }
-    
-    /// Creates a `Binding` for the given `Key`
-    public func binding<Value>(
-        _ key: Key,
-        as: Value.Type = Value.self
-    ) -> Binding<Value> {
-        Binding(
-            get: { self.store.resolve(key) },
-            set: {
-                self.objectWillChange.send()
-                self.store.set(value: $0, forKey: key)
-            }
-        )
-    }
-    
-    /// Creates a `Binding` for the given `Key` where the value is Optional
-    public func optionalBinding<Value>(
-        _ key: Key,
-        as: Value.Type = Value.self
-    ) -> Binding<Value?> {
-        Binding(
-            get: { self.store.get(key) },
-            set: {
-                self.objectWillChange.send()
-                self.store.set(value: $0, forKey: key)
-            }
-        )
-    }
 }
 
 // MARK: - Void Dependency
