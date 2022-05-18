@@ -136,7 +136,13 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
         _ key: Key,
         as: Value.Type = Value.self
     ) -> Binding<Value> {
-        store.binding(key)
+        Binding(
+            get: { self.store.resolve(key) },
+            set: {
+                self.objectWillChange.send()
+                self.store.set(value: $0, forKey: key)
+            }
+        )
     }
     
     /// Creates a `Binding` for the given `Key` where the value is Optional
@@ -144,7 +150,13 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
         _ key: Key,
         as: Value.Type = Value.self
     ) -> Binding<Value?> {
-        store.optionalBinding(key)
+        Binding(
+            get: { self.store.get(key) },
+            set: {
+                self.objectWillChange.send()
+                self.store.set(value: $0, forKey: key)
+            }
+        )
     }
 }
 
