@@ -14,7 +14,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
     
     /// A publisher for the private `cache` that is mapped to a CacheStore
     public var publisher: AnyPublisher<CacheStore<Key>, Never> {
-        xyz.publisher
+        store.publisher
     }
     
     public required init(
@@ -65,7 +65,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
         
         lock.lock()
 //        objectWillChange.send()
-        actionHandler.handle(store: &xyz, action: action, dependency: dependency)
+        actionHandler.handle(store: &store, action: action, dependency: dependency)
         lock.unlock()
     }
     
@@ -95,7 +95,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
             dependency: dependencyTransformation(dependency)
         )
         
-        let scopedCacheStore = xyz.scope(
+        let scopedCacheStore = store.scope(
             keyTransformation: keyTransformation,
             defaultCache: defaultCache
         )
@@ -110,10 +110,10 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
             }
         }
         
-        xyz.cache.forEach { key, value in
+        store.cache.forEach { key, value in
             guard let scopedKey = keyTransformation.from(key) else { return }
             
-            scopedStore.xyz.cache[scopedKey] = value
+            scopedStore.store.cache[scopedKey] = value
         }
         
         return scopedStore
