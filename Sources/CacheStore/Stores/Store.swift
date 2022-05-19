@@ -67,7 +67,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
         
         if NSDictionary(dictionary: storeCopy.cache).isEqual(to: store.cache) == false {
             objectWillChange.send()
-            store = storeCopy
+            store.cache = storeCopy.cache
         }
         
         lock.unlock()
