@@ -65,7 +65,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
         var storeCopy = store.copy()
         actionHandler.handle(store: &storeCopy, action: action, dependency: dependency)
         
-        if NSDictionary(dictionary: storeCopy.cache).isNotEqual(to: store.cache) {
+        if NSDictionary(dictionary: storeCopy.cache).isEqual(to: store.cache) == false {
             objectWillChange.send()
             store = storeCopy
         }
