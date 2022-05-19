@@ -106,6 +106,10 @@ public class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
         cache[key] = nil
         lock.unlock()
     }
+    
+    // MARK: - Copying
+    
+    public func copy() -> CacheStore { CacheStore(initialValues: cache) }
 }
 
 // MARK: -

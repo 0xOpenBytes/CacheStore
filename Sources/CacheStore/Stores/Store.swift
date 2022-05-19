@@ -61,8 +61,15 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
         }
         
         lock.lock()
-        objectWillChange.send()
-        actionHandler.handle(store: &store, action: action, dependency: dependency)
+        
+        var storeCopy = store.copy()
+        actionHandler.handle(store: &storeCopy, action: action, dependency: dependency)
+        
+        if NSDictionary(dictionary: storeCopy.cache).isEqual(to: store.cache) == false {
+            objectWillChange.send()
+            store = storeCopy
+        }
+        
         lock.unlock()
     }
     
@@ -131,31 +138,27 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
         )
     }
     
-    /// Creates a `Binding` for the given `Key`
+    /// Creates a `Binding` for the given `Key` using an `Action` to set the value
     public func binding<Value>(
         _ key: Key,
-        as: Value.Type = Value.self
+        as: Value.Type = Value.self,
+        using: @escaping (Value) -> Action
     ) -> Binding<Value> {
         Binding(
-            get: { self.store.resolve(key) },
-            set: {
-                self.objectWillChange.send()
-                self.store.set(value: $0, forKey: key)
-            }
+            get: { self.resolve(key) },
+            set: { self.handle(action: using($0)) }
         )
     }
     
-    /// Creates a `Binding` for the given `Key` where the value is Optional
+    /// Creates a `Binding` for the given `Key`, where the value is Optional, using an `Action` to set the value
     public func optionalBinding<Value>(
         _ key: Key,
-        as: Value.Type = Value.self
+        as: Value.Type = Value.self,
+        using: @escaping (Value?) -> Action
     ) -> Binding<Value?> {
         Binding(
-            get: { self.store.get(key) },
-            set: {
-                self.objectWillChange.send()
-                self.store.set(value: $0, forKey: key)
-            }
+            get: { self.get(key) },
+            set: { self.handle(action: using($0)) }
         )
     }
 }
