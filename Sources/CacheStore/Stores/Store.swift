@@ -6,14 +6,9 @@ import SwiftUI
 
 public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHandling {
     private var lock: NSLock
-    @Published private var cache: [Key: Any]
+    private var store: CacheStore<Key>
     private var actionHandler: StoreActionHandler<Key, Action, Dependency>
     private let dependency: Dependency
-    
-    private var store: CacheStore<Key> {
-        get { CacheStore(initialValues: cache) }
-        set { cache = newValue.cache }
-    }
     
     /// A publisher for the private `cache` that is mapped to a CacheStore
     public var publisher: AnyPublisher<CacheStore<Key>, Never> {
@@ -26,7 +21,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
         dependency: Dependency
     ) {
         lock = NSLock()
-        self.cache = initialValues
+        store = CacheStore(initialValues: initialValues)
         self.actionHandler = actionHandler
         self.dependency = dependency
     }
@@ -66,7 +61,15 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
         }
         
         lock.lock()
-        actionHandler.handle(store: &store, action: action, dependency: dependency)
+        
+        var storeCopy = store.copy()
+        actionHandler.handle(store: &storeCopy, action: action, dependency: dependency)
+        
+        if NSDictionary(dictionary: storeCopy.cache).isNotEqual(to: store.cache) {
+            objectWillChange.send()
+            store = storeCopy
+        }
+        
         lock.unlock()
     }
     
@@ -101,7 +104,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
             defaultCache: defaultCache
         )
         
-        scopedStore.cache = scopedCacheStore.cache
+        scopedStore.store = scopedCacheStore
         scopedStore.parentStore = self
         scopedStore.actionHandler = StoreActionHandler { (store: inout CacheStore<ScopedKey>, action: ScopedAction, dependency: ScopedDependency) in
             actionHandler.handle(store: &store, action: action, dependency: dependency)
@@ -111,10 +114,10 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
             }
         }
         
-        cache.forEach { key, value in
+        store.cache.forEach { key, value in
             guard let scopedKey = keyTransformation.from(key) else { return }
             
-            scopedStore.cache[scopedKey] = value
+            scopedStore.store.cache[scopedKey] = value
         }
         
         return scopedStore
