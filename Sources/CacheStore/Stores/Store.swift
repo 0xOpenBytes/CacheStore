@@ -101,7 +101,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
             defaultCache: defaultCache
         )
         
-        scopedStore.store.cache = scopedCacheStore.cache
+        scopedStore.cache = scopedCacheStore.cache
         scopedStore.parentStore = self
         scopedStore.actionHandler = StoreActionHandler { (store: inout CacheStore<ScopedKey>, action: ScopedAction, dependency: ScopedDependency) in
             actionHandler.handle(store: &store, action: action, dependency: dependency)
@@ -111,10 +111,10 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
             }
         }
         
-        store.cache.forEach { key, value in
+        cache.forEach { key, value in
             guard let scopedKey = keyTransformation.from(key) else { return }
             
-            scopedStore.store.cache[scopedKey] = value
+            scopedStore.cache[scopedKey] = value
         }
         
         return scopedStore
