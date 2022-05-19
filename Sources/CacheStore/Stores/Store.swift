@@ -10,9 +10,11 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
     private var actionHandler: StoreActionHandler<Key, Action, Dependency>
     private let dependency: Dependency
     
+    @Published var xyz: CacheStore<Key>
+    
     /// A publisher for the private `cache` that is mapped to a CacheStore
     public var publisher: AnyPublisher<CacheStore<Key>, Never> {
-        store.publisher
+        xyz.publisher
     }
     
     public required init(
@@ -22,24 +24,25 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
     ) {
         lock = NSLock()
         store = CacheStore(initialValues: initialValues)
+        xyz = store
         self.actionHandler = actionHandler
         self.dependency = dependency
     }
     
     /// Get the value in the `cache` using the `key`. This returns an optional value. If the value is `nil`, that means either the value doesn't exist or the value is not able to be casted as `Value`.
     public func get<Value>(_ key: Key, as: Value.Type = Value.self) -> Value? {
-        store.get(key)
+        xyz.get(key)
     }
     
     /// Resolve the value in the `cache` using the `key`. This function uses `get` and force casts the value. This should only be used when you know the value is always in the `cache`.
     public func resolve<Value>(_ key: Key, as: Value.Type = Value.self) -> Value {
-        store.resolve(key)
+        xyz.resolve(key)
     }
     
     /// Checks to make sure the cache has the required keys, otherwise it will throw an error
     @discardableResult
     public func require(keys: Set<Key>) throws -> Self {
-        try store.require(keys: keys)
+        try xyz.require(keys: keys)
         
         return self
     }
@@ -47,7 +50,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
     /// Checks to make sure the cache has the required key, otherwise it will throw an error
     @discardableResult
     public func require(_ key: Key) throws -> Self {
-        try store.require(keys: [key])
+        try xyz.require(keys: [key])
         
         return self
     }
@@ -61,21 +64,21 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
         }
         
         lock.lock()
-        objectWillChange.send()
-        actionHandler.handle(store: &store, action: action, dependency: dependency)
+//        objectWillChange.send()
+        actionHandler.handle(store: &xyz, action: action, dependency: dependency)
         lock.unlock()
     }
     
     /// Checks if the given `key` has a value or not
     public func contains(_ key: Key) -> Bool {
-        store.contains(key)
+        xyz.contains(key)
     }
     
     /// Returns a Dictionary containing only the key value pairs where the value is the same type as the generic type `Value`
     public func valuesInCache<Value>(
         ofType type: Value.Type = Value.self
     ) -> [Key: Value] {
-        store.valuesInCache(ofType: type)
+        xyz.valuesInCache(ofType: type)
     }
     
     /// Creates a `ScopedStore`
@@ -92,7 +95,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
             dependency: dependencyTransformation(dependency)
         )
         
-        let scopedCacheStore = store.scope(
+        let scopedCacheStore = xyz.scope(
             keyTransformation: keyTransformation,
             defaultCache: defaultCache
         )
@@ -107,10 +110,10 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
             }
         }
         
-        store.cache.forEach { key, value in
+        xyz.cache.forEach { key, value in
             guard let scopedKey = keyTransformation.from(key) else { return }
             
-            scopedStore.store.cache[scopedKey] = value
+            scopedStore.xyz.cache[scopedKey] = value
         }
         
         return scopedStore
