@@ -20,8 +20,12 @@ let package = Package(
     dependencies: [
         // Dependencies declare other packages that this package depends on.
          .package(
-            url: "https://github.com/0xOpenBytes/FLet",
-            from: "2.0.0"
+            url: "https://github.com/0xOpenBytes/c",
+            from: "1.1.1"
+        ),
+         .package(
+            url: "https://github.com/0xOpenBytes/t",
+            from: "0.2.0"
         )
     ],
     targets: [
@@ -29,7 +33,10 @@ let package = Package(
         // Targets can depend on other targets in this package, and on products in packages this package depends on.
         .target(
             name: "CacheStore",
-            dependencies: ["FLet"]
+            dependencies: [
+                "c",
+                "t"
+            ]
         ),
         .testTarget(
             name: "CacheStoreTests",

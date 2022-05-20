@@ -6,9 +6,13 @@ import SwiftUI
 
 public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHandling {
     private var lock: NSLock
+    private var isDebugging: Bool
     private var store: CacheStore<Key>
     private var actionHandler: StoreActionHandler<Key, Action, Dependency>
     private let dependency: Dependency
+    
+    /// The values in the `cache` of type `Any`
+    public var valuesInCache: [Key: Any] { store.valuesInCache }
     
     /// A publisher for the private `cache` that is mapped to a CacheStore
     public var publisher: AnyPublisher<CacheStore<Key>, Never> {
@@ -21,6 +25,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
         dependency: Dependency
     ) {
         lock = NSLock()
+        isDebugging = false
         store = CacheStore(initialValues: initialValues)
         self.actionHandler = actionHandler
         self.dependency = dependency
@@ -62,12 +67,53 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
         
         lock.lock()
         
+        if isDebugging {
+            print("[\(formattedDate)] 🟡 New Action: \(action) (Store (\(self), \(store)))")
+        }
+        
         var storeCopy = store.copy()
         actionHandler.handle(store: &storeCopy, action: action, dependency: dependency)
         
+        if isDebugging {
+            print(
+                """
+                [\(formattedDate)] 📣 Handled Action: \(action) (Store (\(self), \(store)))
+                --------------- State Output ------------
+                """
+            )
+        }
+        
         if NSDictionary(dictionary: storeCopy.cache).isEqual(to: store.cache) == false {
+            if isDebugging {
+                print(
+                    """
+                    \t⚠️ State Changed
+                    \t\t--- Was ---
+                    \t\t\(store.valuesInCache.map { "\($0): \($1)" }.joined(separator: "\n\t\t"))
+                    \t\t-----------
+                    \t\t***********
+                    \t\t--- Now ---
+                    \t\t\(storeCopy.valuesInCache.map { "\($0): \($1)" }.joined(separator: "\n\t\t"))
+                    \t\t-----------
+                    """
+                )
+            }
+            
             objectWillChange.send()
             store.cache = storeCopy.cache
+        } else {
+            if isDebugging {
+                print("\t🙅 No State Change")
+            }
+        }
+        
+        if isDebugging {
+            print(
+                """
+                --------------- State End ---------------
+                [\(formattedDate)] 🏁 End Action: \(action) (Store (\(self), \(store)))
+                """
+            )
         }
         
         lock.unlock()
@@ -192,5 +238,25 @@ public extension Store {
             dependencyTransformation: { _ in () },
             defaultCache: defaultCache
         )
+    }
+}
+
+// MARK: - Debugging
+
+extension Store {
+    public var debug: Self {
+        isDebugging = true
+        
+        return self
+    }
+    
+    private var formattedDate: String {
+        let now = Date()
+        let formatter = DateFormatter()
+        
+        formatter.dateStyle = .short
+        formatter.timeStyle = .medium
+        
+        return formatter.string(from: now)
     }
 }
