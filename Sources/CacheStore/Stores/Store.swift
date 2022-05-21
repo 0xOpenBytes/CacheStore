@@ -93,7 +93,17 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
                     \t\t-----------
                     \t\t***********
                     \t\t--- Now ---
-                    \t\t\(storeCopy.valuesInCache.map { "\($0): \($1)" }.joined(separator: "\n\t\t"))
+                    \t\t\(
+                        storeCopy.valuesInCache.map { key, value in
+                            guard
+                                let storeValue: Any = store.get(key),
+                                NSDictionary(dictionary: [key: value]).isEqual(to: [key: storeValue])
+                            else { return "+ \(key): \(value)" }
+                    
+                            return "\(key): \(value)"
+                        }
+                        .joined(separator: "\n\t\t")
+                    )
                     \t\t-----------
                     """
                 )
