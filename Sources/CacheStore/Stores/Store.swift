@@ -20,12 +20,6 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
     }
     
     /// An identifier of the Store and CacheStore
-    /// (Store: ScopedStore<GroceryAid.AppCacheKey, GroceryAid.CompareCacheKey, GroceryAid.AppAction, GroceryAid.CompareAction, (), ()>,
-    ///
-    ///
-    ///  Parent: (Store: Store<GroceryAid.AppCacheKey, GroceryAid.AppAction, ()>, CacheStore: 0x000060000287d230))
-    /// self = ScopedStore<GroceryAid.CompareCacheKey,GroceryAid.CompareAction, ()>, Parent: (Store: Store<GroceryAid.AppCacheKey, GroceryAid.AppAction, ()>
-    /// CacheStore: 0x000060000287d230
     var debugIdentifier: String {
         let storeDescription: String = "\(self)".replacingOccurrences(of: "CacheStore.", with: "")
         return "(Store: \(storeDescription), CacheStore: \(Unmanaged.passUnretained(store).toOpaque().debugDescription))"
