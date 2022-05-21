@@ -12,5 +12,14 @@ class ScopedStore<
     ) {
         super.init(initialValues: initialValues, actionHandler: actionHandler, dependency: dependency)
     }
+    
+    /// An identifier of the Store and CacheStore
+    override var debugIdentifier: String {
+        guard let parentStore = parentStore else {
+            return super.debugIdentifier
+        }
+
+        return "(Store: \(self), Parent: \(parentStore.debugIdentifier))"
+    }
 }
 

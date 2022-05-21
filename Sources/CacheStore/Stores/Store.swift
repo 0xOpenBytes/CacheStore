@@ -19,6 +19,11 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
         store.publisher
     }
     
+    /// An identifier of the Store and CacheStore
+    var debugIdentifier: String {
+        "(Store: \(self), CacheStore: \(Unmanaged.passUnretained(store).toOpaque().debugDescription))"
+    }
+    
     public required init(
         initialValues: [Key: Any],
         actionHandler: StoreActionHandler<Key, Action, Dependency>,
@@ -68,7 +73,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
         lock.lock()
         
         if isDebugging {
-            print("[\(formattedDate)] 🟡 New Action: \(action) \(debuggingIdentifier)")
+            print("[\(formattedDate)] 🟡 New Action: \(action) \(debugIdentifier)")
         }
         
         var storeCopy = store.copy()
@@ -77,7 +82,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
         if isDebugging {
             print(
                 """
-                [\(formattedDate)] 📣 Handled Action: \(action) \(debuggingIdentifier)
+                [\(formattedDate)] 📣 Handled Action: \(action) \(debugIdentifier)
                 --------------- State Output ------------
                 """
             )
@@ -111,7 +116,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
             print(
                 """
                 --------------- State End ---------------
-                [\(formattedDate)] 🏁 End Action: \(action) \(debuggingIdentifier)
+                [\(formattedDate)] 🏁 End Action: \(action) \(debugIdentifier)
                 """
             )
         }
@@ -259,11 +264,7 @@ extension Store {
         
         return formatter.string(from: now)
     }
-    
-    private var debuggingIdentifier: String {
-        "(Store: \(self), CacheStore: \(Unmanaged.passUnretained(store).toOpaque().debugDescription))"
-    }
-    
+
     private func isCacheEqual(to updatedStore: CacheStore<Key>) -> Bool {
         guard store.cache.count == updatedStore.cache.count else { return false }
         
