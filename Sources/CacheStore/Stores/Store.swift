@@ -21,8 +21,17 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
     
     /// An identifier of the Store and CacheStore
     var debugIdentifier: String {
-        let storeDescription: String = "\(self)".replacingOccurrences(of: "CacheStore.", with: "")
-        return "(Store: \(storeDescription), CacheStore: \(Unmanaged.passUnretained(store).toOpaque().debugDescription))"
+        let cacheStoreAddress = Unmanaged.passUnretained(store).toOpaque().debugDescription
+        var storeDescription: String = "\(self)".replacingOccurrences(of: "CacheStore.", with: "")
+        
+        guard let index = storeDescription.firstIndex(of: "<") else {
+            return "(Store: \(storeDescription), CacheStore: \(cacheStoreAddress))"
+        }
+        
+        storeDescription = storeDescription[..<index].description // "Store"
+        storeDescription += "<\(Key.self), \(Action.self), \(Dependency.self)>"
+        
+        return "(Store: \(storeDescription), CacheStore: \(cacheStoreAddress))"
     }
     
     public required init(
