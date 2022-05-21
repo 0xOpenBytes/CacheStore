@@ -82,28 +82,22 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
                 """
             )
         }
-        
-        if NSDictionary(dictionary: storeCopy.cache).isEqual(to: store.cache) == false {
+       
+        if isCacheEqual(to: storeCopy) {
+            if isDebugging {
+                print("\t🙅 No State Change")
+            }
+        } else {
             if isDebugging {
                 print(
                     """
                     \t⚠️ State Changed
                     \t\t--- Was ---
-                    \t\t\(store.valuesInCache.map { "\($0): \($1)" }.joined(separator: "\n\t\t"))
+                    \t\t\(debuggingStateDelta(forUpdatedStore: store))
                     \t\t-----------
                     \t\t***********
                     \t\t--- Now ---
-                    \t\t\(
-                        storeCopy.valuesInCache.map { key, value in
-                            guard
-                                let storeValue: Any = store.get(key),
-                                NSDictionary(dictionary: [key: value]).isEqual(to: [key: storeValue])
-                            else { return "+ \(key): \(value)" }
-                    
-                            return "\(key): \(value)"
-                        }
-                        .joined(separator: "\n\t\t")
-                    )
+                    \t\t\(debuggingStateDelta(forUpdatedStore: storeCopy))
                     \t\t-----------
                     """
                 )
@@ -111,10 +105,6 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
             
             objectWillChange.send()
             store.cache = storeCopy.cache
-        } else {
-            if isDebugging {
-                print("\t🙅 No State Change")
-            }
         }
         
         if isDebugging {
@@ -272,5 +262,51 @@ extension Store {
     
     private var debuggingIdentifier: String {
         "(Store: \(self), CacheStore: \(Unmanaged.passUnretained(store).toOpaque().debugDescription))"
+    }
+    
+    private func isCacheEqual(to updatedStore: CacheStore<Key>) -> Bool {
+        guard store.cache.count == updatedStore.cache.count else { return false }
+        
+        return updatedStore.cache.map { key, value in
+            isValueEqual(toUpdatedValue: value, forKey: key)
+        }
+        .reduce(into: true) { result, condition in
+            guard condition else {
+                result = false
+                return
+            }
+        }
+    }
+    
+    private func isValueEqual<Value>(toUpdatedValue updatedValue: Value, forKey key: Key) -> Bool {
+        guard let storeValue: Value = store.get(key) else {
+            return false
+        }
+
+        if type(of: storeValue) is AnyClass {
+            return NSDictionary(dictionary: [key: updatedValue]).isEqual(to: [key: storeValue])
+        } else {
+            return "\(updatedValue)" == "\(storeValue)"
+        }
+    }
+    
+    private func debuggingStateDelta(forUpdatedStore updatedStore: CacheStore<Key>) -> String {
+        var updatedStateChanges: [String] = []
+        
+        for (key, value) in updatedStore.valuesInCache {
+            let isValueEqual: Bool = isValueEqual(toUpdatedValue: value, forKey: key)
+            let valueInfo: String = "\(type(of: value))"
+            let valueOutput: String
+            
+            if type(of: value) is AnyClass {
+                valueOutput = "(\(Unmanaged.passUnretained(value as AnyObject).toOpaque().debugDescription))"
+            } else {
+                valueOutput = "= \(value)"
+            }
+            
+            updatedStateChanges.append("\(isValueEqual ? "" : "+ ")\(key): \(valueInfo) \(valueOutput)")
+        }
+        
+        return updatedStateChanges.joined(separator: "\n\t\t")
     }
 }
