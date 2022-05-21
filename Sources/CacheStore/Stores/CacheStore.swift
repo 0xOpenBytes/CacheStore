@@ -8,6 +8,9 @@ public class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
     private var lock: NSLock
     @Published var cache: [Key: Any]
     
+    /// The values in the `cache` of type `Any`
+    public var valuesInCache: [Key: Any] { cache }
+    
     required public init(initialValues: [Key: Any]) {
         lock = NSLock()
         cache = initialValues
@@ -15,6 +18,7 @@ public class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
 
     public func get<Value>(_ key: Key, as: Value.Type = Value.self) -> Value? {
         defer { lock.unlock() }
+        lock.lock()
         guard let value = cache[key] as? Value else {
             return nil
         }
