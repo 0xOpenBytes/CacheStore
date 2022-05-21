@@ -68,7 +68,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
         lock.lock()
         
         if isDebugging {
-            print("[\(formattedDate)] 🟡 New Action: \(action) (Store (\(self), \(store)))")
+            print("[\(formattedDate)] 🟡 New Action: \(action) \(debuggingIdentifier)")
         }
         
         var storeCopy = store.copy()
@@ -77,7 +77,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
         if isDebugging {
             print(
                 """
-                [\(formattedDate)] 📣 Handled Action: \(action) (Store (\(self), \(store)))
+                [\(formattedDate)] 📣 Handled Action: \(action) \(debuggingIdentifier)
                 --------------- State Output ------------
                 """
             )
@@ -111,7 +111,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
             print(
                 """
                 --------------- State End ---------------
-                [\(formattedDate)] 🏁 End Action: \(action) (Store (\(self), \(store)))
+                [\(formattedDate)] 🏁 End Action: \(action) \(debuggingIdentifier)
                 """
             )
         }
@@ -258,5 +258,9 @@ extension Store {
         formatter.timeStyle = .medium
         
         return formatter.string(from: now)
+    }
+    
+    private var debuggingIdentifier: String {
+        "(Store: \(self), CacheStore: \(Unmanaged.passUnretained(store).toOpaque().debugDescription))"
     }
 }
