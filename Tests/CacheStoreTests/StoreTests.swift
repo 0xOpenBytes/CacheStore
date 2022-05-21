@@ -7,13 +7,33 @@ class StoreTests: XCTestCase {
     func testExample() {
         XCTAssert(
             t.suite(named: "Testing Store") {
+                struct SomeStruct {
+                    var value: String
+                    var otherValue: String
+                }
+                
+                class SomeClass { // CacheStoreTests.StoreTests.(unknown context at $129c6ec6c).(unknown context at $129c6ecb4).(unknown context at $129c6ecfc).(unknown context at $129c6ede8).SomeClass
+                    /*
+                     Values
+                     Address
+                     */
+                    var value: String
+                    var otherValue: String
+                    
+                    init(value: String, otherValue: String) {
+                        self.value = value
+                        self.otherValue = otherValue
+                    }
+                }
+                
                 enum StoreKey {
                     case isOn
-                    case someRandomValue
+                    case someStruct
+                    case someClass
                 }
                 
                 enum Action {
-                    case toggle, nothing
+                    case toggle, nothing, removeValue
                 }
                 
                 let actionHandler = StoreActionHandler<StoreKey, Action, Void> { (store: inout CacheStore<StoreKey>, action: Action, _: Void) in
@@ -22,11 +42,17 @@ class StoreTests: XCTestCase {
                         store.update(.isOn, as: Bool.self, updater: { $0?.toggle() })
                     case .nothing:
                         print("Do nothing")
+                    case .removeValue:
+                        store.remove(.someStruct)
                     }
                 }
                 
                 let store = try Store<StoreKey, Action, Void>(
-                    initialValues: [.isOn: false, .someRandomValue: "???"],
+                    initialValues: [
+                        .isOn: false,
+                        .someStruct: SomeStruct(value: "init-struct", otherValue: "other"),
+                        .someClass: SomeClass(value: "init-class", otherValue: "other"),
+                    ],
                     actionHandler: actionHandler,
                     dependency: ()
                 )
@@ -40,6 +66,8 @@ class StoreTests: XCTestCase {
                 store.handle(action: .nothing)
                 
                 try t.assert(store.get(.isOn), isEqualTo: true)
+                
+                store.handle(action: .removeValue)
             }
         )
     }
