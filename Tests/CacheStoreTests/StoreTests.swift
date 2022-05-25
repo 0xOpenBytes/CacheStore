@@ -12,11 +12,7 @@ class StoreTests: XCTestCase {
                     var otherValue: String
                 }
                 
-                class SomeClass { // CacheStoreTests.StoreTests.(unknown context at $129c6ec6c).(unknown context at $129c6ecb4).(unknown context at $129c6ecfc).(unknown context at $129c6ede8).SomeClass
-                    /*
-                     Values
-                     Address
-                     */
+                class SomeClass {
                     var value: String
                     var otherValue: String
                     
@@ -33,7 +29,7 @@ class StoreTests: XCTestCase {
                 }
                 
                 enum Action {
-                    case toggle, nothing, removeValue
+                    case toggle, nothing, removeValue, updateStruct, updateClass
                 }
                 
                 let actionHandler = StoreActionHandler<StoreKey, Action, Void> { (store: inout CacheStore<StoreKey>, action: Action, _: Void) in
@@ -44,6 +40,10 @@ class StoreTests: XCTestCase {
                         print("Do nothing")
                     case .removeValue:
                         store.remove(.someStruct)
+                    case .updateStruct:
+                        store.update(.someStruct, as: SomeStruct.self, updater: { $0?.otherValue = "something" })
+                    case .updateClass:
+                        store.update(.someClass, as: SomeClass.self, updater: { $0?.otherValue = "something else" })
                     }
                 }
                 
@@ -67,8 +67,13 @@ class StoreTests: XCTestCase {
                 
                 try t.assert(store.get(.isOn), isEqualTo: true)
                 
+                store.handle(action: .updateStruct)
+                
+                // No state changes for Referance Types
+                store.handle(action: .updateClass)
+                
                 store.handle(action: .removeValue)
             }
         )
     }
-}
+}t

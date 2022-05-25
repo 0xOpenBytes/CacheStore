@@ -293,12 +293,8 @@ extension Store {
         guard let storeValue: Value = store.get(key) else {
             return false
         }
-
-        if type(of: storeValue) is AnyClass {
-            return NSDictionary(dictionary: [key: updatedValue]).isEqual(to: [key: storeValue])
-        } else {
-            return "\(updatedValue)" == "\(storeValue)"
-        }
+        
+        return "\(updatedValue)" == "\(storeValue)"
     }
     
     private func debuggingStateDelta(forUpdatedStore updatedStore: CacheStore<Key>) -> String {
