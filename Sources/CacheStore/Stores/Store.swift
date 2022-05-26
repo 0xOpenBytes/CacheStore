@@ -12,15 +12,26 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
     private let dependency: Dependency
     
     /// The values in the `cache` of type `Any`
-    public var valuesInCache: [Key: Any] { store.valuesInCache }
+    public var valuesInCache: [Key: Any] {
+        defer { lock.unlock() }
+        lock.lock()
+        
+        return store.valuesInCache
+    }
     
     /// A publisher for the private `cache` that is mapped to a CacheStore
     public var publisher: AnyPublisher<CacheStore<Key>, Never> {
-        store.publisher
+        defer { lock.unlock() }
+        lock.lock()
+        
+        return store.publisher
     }
     
     /// An identifier of the Store and CacheStore
     var debugIdentifier: String {
+        defer { lock.unlock() }
+        lock.lock()
+        
         let cacheStoreAddress = Unmanaged.passUnretained(store).toOpaque().debugDescription
         var storeDescription: String = "\(self)".replacingOccurrences(of: "CacheStore.", with: "")
         
@@ -48,18 +59,26 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
     
     /// Get the value in the `cache` using the `key`. This returns an optional value. If the value is `nil`, that means either the value doesn't exist or the value is not able to be casted as `Value`.
     public func get<Value>(_ key: Key, as: Value.Type = Value.self) -> Value? {
-        store.get(key)
+        defer { lock.unlock() }
+        lock.lock()
+        
+        return store.get(key)
     }
     
     /// Resolve the value in the `cache` using the `key`. This function uses `get` and force casts the value. This should only be used when you know the value is always in the `cache`.
     public func resolve<Value>(_ key: Key, as: Value.Type = Value.self) -> Value {
-        store.resolve(key)
+        defer { lock.unlock() }
+        lock.lock()
+        
+        return store.resolve(key)
     }
     
     /// Checks to make sure the cache has the required keys, otherwise it will throw an error
     @discardableResult
     public func require(keys: Set<Key>) throws -> Self {
+        lock.lock()
         try store.require(keys: keys)
+        lock.unlock()
         
         return self
     }
@@ -67,7 +86,9 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
     /// Checks to make sure the cache has the required key, otherwise it will throw an error
     @discardableResult
     public func require(_ key: Key) throws -> Self {
+        lock.lock()
         try store.require(keys: [key])
+        lock.unlock()
         
         return self
     }
@@ -87,7 +108,13 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
         }
         
         var storeCopy = store.copy()
-        actionHandler.handle(store: &storeCopy, action: action, dependency: dependency)
+        if let effect = actionHandler.handle(store: &storeCopy, action: action, dependency: dependency) {
+            Task {
+                guard let nextAction = await effect() else { return }
+                
+                handle(action: nextAction)
+            }
+        }
         
         if isDebugging {
             print(
@@ -136,14 +163,20 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
     
     /// Checks if the given `key` has a value or not
     public func contains(_ key: Key) -> Bool {
-        store.contains(key)
+        defer { lock.unlock() }
+        lock.lock()
+        
+        return store.contains(key)
     }
     
     /// Returns a Dictionary containing only the key value pairs where the value is the same type as the generic type `Value`
     public func valuesInCache<Value>(
         ofType type: Value.Type = Value.self
     ) -> [Key: Value] {
-        store.valuesInCache(ofType: type)
+        defer { lock.unlock() }
+        lock.lock()
+        
+        return store.valuesInCache(ofType: type)
     }
     
     /// Creates a `ScopedStore`
@@ -160,6 +193,9 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
             dependency: dependencyTransformation(dependency)
         )
         
+        defer { lock.unlock() }
+        lock.lock()
+        
         let scopedCacheStore = store.scope(
             keyTransformation: keyTransformation,
             defaultCache: defaultCache
@@ -168,11 +204,13 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
         scopedStore.store = scopedCacheStore
         scopedStore.parentStore = self
         scopedStore.actionHandler = StoreActionHandler { (store: inout CacheStore<ScopedKey>, action: ScopedAction, dependency: ScopedDependency) in
-            actionHandler.handle(store: &store, action: action, dependency: dependency)
+            let effect = actionHandler.handle(store: &store, action: action, dependency: dependency)
             
             if let parentAction = actionTransformation(action) {
                 scopedStore.parentStore?.handle(action: parentAction)
             }
+            
+            return effect
         }
         
         store.cache.forEach { key, value in
@@ -260,7 +298,9 @@ public extension Store {
 
 extension Store {
     public var debug: Self {
+        lock.lock()
         isDebugging = true
+        lock.unlock()
         
         return self
     }
@@ -276,7 +316,9 @@ extension Store {
     }
 
     private func isCacheEqual(to updatedStore: CacheStore<Key>) -> Bool {
+        lock.lock()
         guard store.cache.count == updatedStore.cache.count else { return false }
+        lock.unlock()
         
         return updatedStore.cache.map { key, value in
             isValueEqual(toUpdatedValue: value, forKey: key)
@@ -290,9 +332,11 @@ extension Store {
     }
     
     private func isValueEqual<Value>(toUpdatedValue updatedValue: Value, forKey key: Key) -> Bool {
+        lock.lock()
         guard let storeValue: Value = store.get(key) else {
             return false
         }
+        lock.unlock()
         
         return "\(updatedValue)" == "\(storeValue)"
     }

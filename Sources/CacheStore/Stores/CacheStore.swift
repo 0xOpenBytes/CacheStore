@@ -75,13 +75,19 @@ public class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
     }
     
     public func contains(_ key: Key) -> Bool {
-        cache[key] != nil
+        defer { lock.unlock() }
+        lock.lock()
+        
+        return cache[key] != nil
     }
     
     public func valuesInCache<Value>(
         ofType: Value.Type = Value.self
     ) -> [Key: Value] {
-        cache.compactMapValues { $0 as? Value }
+        defer { lock.unlock() }
+        lock.lock()
+        
+        return cache.compactMapValues { $0 as? Value }
     }
 
     /// Update the value of a key by mutating the value passed into the `updater` parameter
@@ -113,7 +119,12 @@ public class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
     
     // MARK: - Copying
     
-    public func copy() -> CacheStore { CacheStore(initialValues: cache) }
+    public func copy() -> CacheStore {
+        defer { lock.unlock() }
+        lock.lock()
+        
+        return CacheStore(initialValues: cache)
+    }
 }
 
 // MARK: -
@@ -121,7 +132,10 @@ public class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
 public extension CacheStore {
     /// A publisher for the private `cache` that is mapped to a CacheStore
     var publisher: AnyPublisher<CacheStore, Never> {
-        $cache.map(CacheStore.init).eraseToAnyPublisher()
+        defer { lock.unlock() }
+        lock.lock()
+        
+        return $cache.map(CacheStore.init).eraseToAnyPublisher()
     }
     
     /// Creates a `ScopedCacheStore` with the given key transformation and default cache
@@ -134,11 +148,13 @@ public extension CacheStore {
         scopedCacheStore.cache = defaultCache
         scopedCacheStore.parentCacheStore = self
         
+        lock.lock()
         cache.forEach { key, value in
             guard let scopedKey = keyTransformation.from(key) else { return }
             
             scopedCacheStore.cache[scopedKey] = value
         }
+        lock.unlock()
         
         return scopedCacheStore
     }

@@ -36,6 +36,7 @@ class StoreTests: XCTestCase {
                     switch action {
                     case .toggle:
                         store.update(.isOn, as: Bool.self, updater: { $0?.toggle() })
+                        return { .nothing }
                     case .nothing:
                         print("Do nothing")
                     case .removeValue:
@@ -45,6 +46,8 @@ class StoreTests: XCTestCase {
                     case .updateClass:
                         store.update(.someClass, as: SomeClass.self, updater: { $0?.otherValue = "something else" })
                     }
+                    
+                    return .none
                 }
                 
                 let store = try Store<StoreKey, Action, Void>(
@@ -63,7 +66,7 @@ class StoreTests: XCTestCase {
                 try t.assert(store.get(.isOn), isEqualTo: false)
                 
                 store.handle(action: .toggle)
-                store.handle(action: .nothing)
+//                store.handle(action: .nothing)
                 
                 try t.assert(store.get(.isOn), isEqualTo: true)
                 
