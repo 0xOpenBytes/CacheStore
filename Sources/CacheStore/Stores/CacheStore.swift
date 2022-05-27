@@ -5,6 +5,18 @@ import SwiftUI
 // MARK: -
 
 public class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
+    public struct MissingRequiredKeysError<Key: Hashable>: LocalizedError {
+        public let keys: Set<Key>
+        
+        public init(keys: Set<Key>) {
+            self.keys = keys
+        }
+        
+        public var errorDescription: String? {
+            "Missing Required Keys: \(keys.map { "\($0)" }.joined(separator: ", "))"
+        }
+    }
+    
     private var lock: NSLock
     @Published var cache: [Key: Any]
     
@@ -63,7 +75,7 @@ public class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
             .filter { contains($0) == false }
 
         guard missingKeys.isEmpty else {
-            throw c.MissingRequiredKeysError(keys: missingKeys)
+            throw MissingRequiredKeysError(keys: missingKeys)
         }
         
         return self

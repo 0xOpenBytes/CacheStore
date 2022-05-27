@@ -7,16 +7,17 @@ import SwiftUI
 public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHandling {
     private var lock: NSLock
     private var isDebugging: Bool
-    private var store: CacheStore<Key>
-    private var actionHandler: StoreActionHandler<Key, Action, Dependency>
-    private let dependency: Dependency
+    
+    var cacheStore: CacheStore<Key>
+    var actionHandler: StoreActionHandler<Key, Action, Dependency>
+    let dependency: Dependency
     
     /// The values in the `cache` of type `Any`
     public var valuesInCache: [Key: Any] {
         defer { lock.unlock() }
         lock.lock()
         
-        return store.valuesInCache
+        return cacheStore.valuesInCache
     }
     
     /// A publisher for the private `cache` that is mapped to a CacheStore
@@ -24,7 +25,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
         defer { lock.unlock() }
         lock.lock()
         
-        return store.publisher
+        return cacheStore.publisher
     }
     
     /// An identifier of the Store and CacheStore
@@ -32,7 +33,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
         defer { lock.unlock() }
         lock.lock()
         
-        let cacheStoreAddress = Unmanaged.passUnretained(store).toOpaque().debugDescription
+        let cacheStoreAddress = Unmanaged.passUnretained(cacheStore).toOpaque().debugDescription
         var storeDescription: String = "\(self)".replacingOccurrences(of: "CacheStore.", with: "")
         
         guard let index = storeDescription.firstIndex(of: "<") else {
@@ -52,7 +53,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
     ) {
         lock = NSLock()
         isDebugging = false
-        store = CacheStore(initialValues: initialValues)
+        cacheStore = CacheStore(initialValues: initialValues)
         self.actionHandler = actionHandler
         self.dependency = dependency
     }
@@ -62,7 +63,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
         defer { lock.unlock() }
         lock.lock()
         
-        return store.get(key)
+        return cacheStore.get(key)
     }
     
     /// Resolve the value in the `cache` using the `key`. This function uses `get` and force casts the value. This should only be used when you know the value is always in the `cache`.
@@ -70,14 +71,14 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
         defer { lock.unlock() }
         lock.lock()
         
-        return store.resolve(key)
+        return cacheStore.resolve(key)
     }
     
     /// Checks to make sure the cache has the required keys, otherwise it will throw an error
     @discardableResult
     public func require(keys: Set<Key>) throws -> Self {
         lock.lock()
-        try store.require(keys: keys)
+        try cacheStore.require(keys: keys)
         lock.unlock()
         
         return self
@@ -87,7 +88,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
     @discardableResult
     public func require(_ key: Key) throws -> Self {
         lock.lock()
-        try store.require(keys: [key])
+        try cacheStore.require(keys: [key])
         lock.unlock()
         
         return self
@@ -107,7 +108,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
             print("[\(formattedDate)] 🟡 New Action: \(action) \(debugIdentifier)")
         }
         
-        var storeCopy = store.copy()
+        var storeCopy = cacheStore.copy()
         if let effect = actionHandler.handle(store: &storeCopy, action: action, dependency: dependency) {
             Task {
                 guard let nextAction = await effect() else { return }
@@ -135,7 +136,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
                     """
                     \t⚠️ State Changed
                     \t\t--- Was ---
-                    \t\t\(debuggingStateDelta(forUpdatedStore: store))
+                    \t\t\(debuggingStateDelta(forUpdatedStore: cacheStore))
                     \t\t-----------
                     \t\t***********
                     \t\t--- Now ---
@@ -146,7 +147,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
             }
             
             objectWillChange.send()
-            store.cache = storeCopy.cache
+            cacheStore.cache = storeCopy.cache
         }
         
         if isDebugging {
@@ -166,7 +167,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
         defer { lock.unlock() }
         lock.lock()
         
-        return store.contains(key)
+        return cacheStore.contains(key)
     }
     
     /// Returns a Dictionary containing only the key value pairs where the value is the same type as the generic type `Value`
@@ -176,7 +177,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
         defer { lock.unlock() }
         lock.lock()
         
-        return store.valuesInCache(ofType: type)
+        return cacheStore.valuesInCache(ofType: type)
     }
     
     /// Creates a `ScopedStore`
@@ -196,12 +197,12 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
         defer { lock.unlock() }
         lock.lock()
         
-        let scopedCacheStore = store.scope(
+        let scopedCacheStore = cacheStore.scope(
             keyTransformation: keyTransformation,
             defaultCache: defaultCache
         )
         
-        scopedStore.store = scopedCacheStore
+        scopedStore.cacheStore = scopedCacheStore
         scopedStore.parentStore = self
         scopedStore.actionHandler = StoreActionHandler { (store: inout CacheStore<ScopedKey>, action: ScopedAction, dependency: ScopedDependency) in
             let effect = actionHandler.handle(store: &store, action: action, dependency: dependency)
@@ -213,10 +214,10 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
             return effect
         }
         
-        store.cache.forEach { key, value in
+        cacheStore.cache.forEach { key, value in
             guard let scopedKey = keyTransformation.from(key) else { return }
             
-            scopedStore.store.cache[scopedKey] = value
+            scopedStore.cacheStore.cache[scopedKey] = value
         }
         
         return scopedStore
@@ -317,7 +318,7 @@ extension Store {
 
     private func isCacheEqual(to updatedStore: CacheStore<Key>) -> Bool {
         lock.lock()
-        guard store.cache.count == updatedStore.cache.count else { return false }
+        guard cacheStore.cache.count == updatedStore.cache.count else { return false }
         lock.unlock()
         
         return updatedStore.cache.map { key, value in
@@ -333,7 +334,7 @@ extension Store {
     
     private func isValueEqual<Value>(toUpdatedValue updatedValue: Value, forKey key: Key) -> Bool {
         lock.lock()
-        guard let storeValue: Value = store.get(key) else {
+        guard let storeValue: Value = cacheStore.get(key) else {
             return false
         }
         lock.unlock()

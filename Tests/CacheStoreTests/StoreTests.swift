@@ -26,6 +26,7 @@ class StoreTests: XCTestCase {
                     case isOn
                     case someStruct
                     case someClass
+                    case rtandom
                 }
                 
                 enum Action {
@@ -36,8 +37,15 @@ class StoreTests: XCTestCase {
                     switch action {
                     case .toggle:
                         store.update(.isOn, as: Bool.self, updater: { $0?.toggle() })
-                        return { .nothing }
+                        
+                        print("HERE: \(Date())")
+                        
+                        return {
+                            sleep(3)
+                            return .nothing
+                        }
                     case .nothing:
+                        print("HERE: \(Date())")
                         print("Do nothing")
                     case .removeValue:
                         store.remove(.someStruct)
@@ -50,7 +58,7 @@ class StoreTests: XCTestCase {
                     return .none
                 }
                 
-                let store = try Store<StoreKey, Action, Void>(
+                let store = try TestStore<StoreKey, Action, Void>(
                     initialValues: [
                         .isOn: false,
                         .someStruct: SomeStruct(value: "init-struct", otherValue: "other"),
@@ -59,23 +67,20 @@ class StoreTests: XCTestCase {
                     actionHandler: actionHandler,
                     dependency: ()
                 )
-                    .require(.isOn)
-                    .debug
+                    .require(keys: [.rtandom, .isOn])
                 
-                try t.assert(store.contains(.isOn), isEqualTo: true)
-                try t.assert(store.get(.isOn), isEqualTo: false)
+                try store.send(.toggle, expecting: { $0.set(value: true, forKey: .isOn) })
                 
-                store.handle(action: .toggle)
-//                store.handle(action: .nothing)
+                try store.receive(.nothing, expecting: { _ in })
+  
+                try store.send(.updateStruct, expecting: {
+                    $0.update(.someStruct, as: SomeStruct.self, updater: { $0?.otherValue = "something" })
+                })
                 
-                try t.assert(store.get(.isOn), isEqualTo: true)
+                // Class changes are ignored due to being reference types
+                try store.send(.updateClass, expecting: { _ in })
                 
-                store.handle(action: .updateStruct)
-                
-                // No state changes for Referance Types
-                store.handle(action: .updateClass)
-                
-                store.handle(action: .removeValue)
+                try store.send(.removeValue, expecting: { $0.remove(.someStruct) })
             }
         )
     }
