@@ -86,7 +86,6 @@ class StoreTests: XCTestCase {
         
         store.send(.removeValue, expecting: { $0.remove(.someStruct) })
         
-        
         print("TEST COMPLETE")
     }
 }
