@@ -2,28 +2,16 @@ import Foundation
 import XCTest
 
 public class TestStore<Key: Hashable, Action, Dependency> {
-    struct TestStoreEffect<Action> {
-        let id: UUID
-        let effect: () async -> Action?
-    }
-    
-    public struct TestStoreError: LocalizedError {
-        public let reason: String
-        
-        public var errorDescription: String? { reason }
-    }
-    
     private let initFile: StaticString
     private let initLine: UInt
+    private var nextAction: Action?
     
-    var store: Store<Key, Action, Dependency>
-    var effects: [TestStoreEffect<Action>]
-    var nextAction: Action?
+    public private(set) var store: Store<Key, Action, Dependency>
+    public private(set) var effects: [ActionEffect<Action>]
     
     deinit {
-        // XCT Execption
         guard effects.isEmpty else {
-            let effectIDs = effects.map(\.id.uuidString).joined(separator: ", ")
+            let effectIDs = effects.map { "\($0)" }.joined(separator: ", ")
             XCTFail("\(effects.count) effect(s) left to receive (\(effectIDs))", file: initFile, line: initLine)
             return
         }
@@ -55,7 +43,8 @@ public class TestStore<Key: Hashable, Action, Dependency> {
         do {
             try expecting(&expectedCacheStore)
         } catch {
-            XCTAssert(false, file: file, line: line)
+            XCTFail("Expectation failed", file: file, line: line)
+            return
         }
         
         guard "\(expectedCacheStore.valuesInCache)" == "\(store.cacheStore.valuesInCache)" else {
@@ -76,7 +65,7 @@ public class TestStore<Key: Hashable, Action, Dependency> {
         }
         
         if let actionEffect = actionEffect {
-            effects.append(TestStoreEffect(id: UUID(), effect: actionEffect.effect))
+            effects.append(actionEffect)
         }
     }
     
