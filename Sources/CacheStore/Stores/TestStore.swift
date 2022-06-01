@@ -1,4 +1,5 @@
 import Foundation
+import XCTest
 
 public class TestStore<Key: Hashable, Action, Dependency> {
     struct TestStoreEffect<Action> {
@@ -6,13 +7,14 @@ public class TestStore<Key: Hashable, Action, Dependency> {
         let effect: () async -> Action?
     }
     
-    struct TestStoreError: LocalizedError {
-        let reason: String
+    public struct TestStoreError: LocalizedError {
+        public let reason: String
         
-        var errorDescription: String? {
-            reason
-        }
+        public var errorDescription: String? { reason }
     }
+    
+    private let initFile: StaticString
+    private let initLine: UInt
     
     var store: Store<Key, Action, Dependency>
     var effects: [TestStoreEffect<Action>]
@@ -21,7 +23,8 @@ public class TestStore<Key: Hashable, Action, Dependency> {
     deinit {
         // XCT Execption
         guard effects.isEmpty else {
-            print("Uh Oh! We still have \(effects.count) effects!")
+            let effectIDs = effects.map(\.id.uuidString).joined(separator: ", ")
+            XCTFail("\(effects.count) effect(s) left to receive (\(effectIDs))", file: initFile, line: initLine)
             return
         }
     }
@@ -29,26 +32,35 @@ public class TestStore<Key: Hashable, Action, Dependency> {
     public required init(
         initialValues: [Key: Any],
         actionHandler: StoreActionHandler<Key, Action, Dependency>,
-        dependency: Dependency
+        dependency: Dependency,
+        file: StaticString = #filePath,
+        line: UInt = #line
     ) {
-        store = Store(initialValues: initialValues, actionHandler: actionHandler, dependency: dependency)
+        store = Store(initialValues: initialValues, actionHandler: actionHandler, dependency: dependency).debug
         effects = []
+        initFile = file
+        initLine = line
     }
     
-    public func send(_ action: Action, expecting: (inout CacheStore<Key>) throws -> Void) throws {
+    public func send(
+        _ action: Action,
+        file: StaticString = #filePath,
+        line: UInt = #line,
+        expecting: (inout CacheStore<Key>) throws -> Void
+    ) {
         var expectedCacheStore = store.cacheStore.copy()
         
-        let effect = store.actionHandler.handle(
-            store: &store.cacheStore,
-            action: action,
-            dependency: store.dependency
-        )
+        let actionEffect = store.send(action)
         
-        try expecting(&expectedCacheStore)
+        do {
+            try expecting(&expectedCacheStore)
+        } catch {
+            XCTAssert(false, file: file, line: line)
+        }
         
         guard "\(expectedCacheStore.valuesInCache)" == "\(store.cacheStore.valuesInCache)" else {
-            throw TestStoreError(
-                reason: """
+            XCTFail(
+                """
                 \n--- Expected ---
                 \(expectedCacheStore.valuesInCache)
                 ----------------
@@ -56,18 +68,27 @@ public class TestStore<Key: Hashable, Action, Dependency> {
                 ---- Actual ----
                 \(store.cacheStore.valuesInCache)
                 ----------------
-                """
+                """,
+                file: file,
+                line: line
             )
+            return
         }
         
-        if let effect = effect {
-            effects.append(TestStoreEffect(id: UUID(), effect: effect))
+        if let actionEffect = actionEffect {
+            effects.append(TestStoreEffect(id: UUID(), effect: actionEffect.effect))
         }
     }
     
-    public func receive(_ action: Action, expecting: @escaping (inout CacheStore<Key>) throws -> Void) throws {
+    public func receive(
+        _ action: Action,
+        file: StaticString = #filePath,
+        line: UInt = #line,
+        expecting: @escaping (inout CacheStore<Key>) throws -> Void
+    ) {
         guard let effect = effects.first else {
-            throw TestStoreError(reason: "No effects to receive")
+            XCTFail("No effects to receive", file: file, line: line)
+            return
         }
         
         effects.removeFirst()
@@ -86,23 +107,38 @@ public class TestStore<Key: Hashable, Action, Dependency> {
         }
         
         guard "\(action)" == "\(nextAction)" else {
-            throw TestStoreError(reason: "Action (\(action)) does not equal NextAction (\(nextAction))")
+            XCTFail("Action (\(action)) does not equal NextAction (\(nextAction))", file: file, line: line)
+            return
         }
         
-        try self.send(nextAction, expecting: expecting)
+        send(nextAction, expecting: expecting)
     }
 }
 
+
 public extension TestStore {
-    func require(keys: Set<Key>) throws -> Self {
-        try store.require(keys: keys)
-        
-        return self
+    func require(
+        keys: Set<Key>,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        do {
+            try store.require(keys: keys)
+        } catch {
+            let requiredKeys = keys.map { "\($0)" }.joined(separator: ", ")
+            XCTFail("Store does not have requied keys (\(requiredKeys))", file: file, line: line)
+        }
     }
     
-    func require(_ key: Key) throws -> Self {
-        try store.require(key)
-        
-        return self
+    func require(
+        _ key: Key,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        do {
+            try store.require(key)
+        } catch {
+            XCTFail("Store does not have requied key (\(key))", file: file, line: line)
+        }
     }
 }

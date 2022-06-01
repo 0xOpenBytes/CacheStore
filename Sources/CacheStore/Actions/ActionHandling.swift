@@ -1,3 +1,5 @@
+import Foundation
+
 public protocol ActionHandling {
     associatedtype Action
     
@@ -5,7 +7,27 @@ public protocol ActionHandling {
     func handle(action: Action)
 }
 
-public typealias ActionEffect<Action> = () async -> Action?
+public struct ActionEffect<Action> {
+    public let id: AnyHashable
+    public let effect: () async -> Action?
+    
+    public static var none: Self {
+        ActionEffect { nil }
+    }
+    
+    public init(
+        id: AnyHashable = UUID(),
+        effect: @escaping () async -> Action?
+    ) {
+        self.id = id
+        self.effect = effect
+    }
+    
+    public init(_ action: Action) {
+        self.id = UUID()
+        self.effect = { action }
+    }
+}
 
 public struct StoreActionHandler<Key: Hashable, Action, Dependency> {
     private let handler: (inout CacheStore<Key>, Action, Dependency) -> ActionEffect<Action>?

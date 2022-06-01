@@ -7,6 +7,7 @@ import SwiftUI
 public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHandling {
     private var lock: NSLock
     private var isDebugging: Bool
+    private var effects: [AnyHashable: Task<(), Never>]
     
     var cacheStore: CacheStore<Key>
     var actionHandler: StoreActionHandler<Key, Action, Dependency>
@@ -14,24 +15,24 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
     
     /// The values in the `cache` of type `Any`
     public var valuesInCache: [Key: Any] {
-        defer { lock.unlock() }
         lock.lock()
+        defer { lock.unlock() }
         
         return cacheStore.valuesInCache
     }
     
     /// A publisher for the private `cache` that is mapped to a CacheStore
     public var publisher: AnyPublisher<CacheStore<Key>, Never> {
-        defer { lock.unlock() }
         lock.lock()
+        defer { lock.unlock() }
         
         return cacheStore.publisher
     }
     
     /// An identifier of the Store and CacheStore
     var debugIdentifier: String {
-        defer { lock.unlock() }
         lock.lock()
+        defer { lock.unlock() }
         
         let cacheStoreAddress = Unmanaged.passUnretained(cacheStore).toOpaque().debugDescription
         var storeDescription: String = "\(self)".replacingOccurrences(of: "CacheStore.", with: "")
@@ -53,6 +54,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
     ) {
         lock = NSLock()
         isDebugging = false
+        effects = [:]
         cacheStore = CacheStore(initialValues: initialValues)
         self.actionHandler = actionHandler
         self.dependency = dependency
@@ -60,16 +62,16 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
     
     /// Get the value in the `cache` using the `key`. This returns an optional value. If the value is `nil`, that means either the value doesn't exist or the value is not able to be casted as `Value`.
     public func get<Value>(_ key: Key, as: Value.Type = Value.self) -> Value? {
-        defer { lock.unlock() }
         lock.lock()
+        defer { lock.unlock() }
         
         return cacheStore.get(key)
     }
     
     /// Resolve the value in the `cache` using the `key`. This function uses `get` and force casts the value. This should only be used when you know the value is always in the `cache`.
     public func resolve<Value>(_ key: Key, as: Value.Type = Value.self) -> Value {
-        defer { lock.unlock() }
         lock.lock()
+        defer { lock.unlock() }
         
         return cacheStore.resolve(key)
     }
@@ -78,8 +80,9 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
     @discardableResult
     public func require(keys: Set<Key>) throws -> Self {
         lock.lock()
+        defer { lock.unlock() }
+        
         try cacheStore.require(keys: keys)
-        lock.unlock()
         
         return self
     }
@@ -88,30 +91,36 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
     @discardableResult
     public func require(_ key: Key) throws -> Self {
         lock.lock()
+        defer { lock.unlock() }
+        
         try cacheStore.require(keys: [key])
-        lock.unlock()
         
         return self
     }
     
     public func handle(action: Action) {
         guard Thread.isMainThread else {
-            DispatchQueue.main.async {
-                self.handle(action: action)
+            DispatchQueue.main.async { [weak self] in
+                self?.handle(action: action)
             }
             return
         }
         
         lock.lock()
+        defer { lock.unlock() }
         
         if isDebugging {
             print("[\(formattedDate)] 🟡 New Action: \(action) \(debugIdentifier)")
         }
         
         var storeCopy = cacheStore.copy()
-        if let effect = actionHandler.handle(store: &storeCopy, action: action, dependency: dependency) {
-            Task {
-                guard let nextAction = await effect() else { return }
+        if let actionEffect = actionHandler.handle(store: &storeCopy, action: action, dependency: dependency) {
+            if let runningEffect = effects[actionEffect.id] {
+                runningEffect.cancel()
+            }
+            
+            effects[actionEffect.id] = Task {
+                guard let nextAction = await actionEffect.effect() else { return }
                 
                 handle(action: nextAction)
             }
@@ -158,14 +167,12 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
                 """
             )
         }
-        
-        lock.unlock()
     }
     
     /// Checks if the given `key` has a value or not
     public func contains(_ key: Key) -> Bool {
-        defer { lock.unlock() }
         lock.lock()
+        defer { lock.unlock() }
         
         return cacheStore.contains(key)
     }
@@ -174,8 +181,8 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
     public func valuesInCache<Value>(
         ofType type: Value.Type = Value.self
     ) -> [Key: Value] {
-        defer { lock.unlock() }
         lock.lock()
+        defer { lock.unlock() }
         
         return cacheStore.valuesInCache(ofType: type)
     }
@@ -194,8 +201,8 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
             dependency: dependencyTransformation(dependency)
         )
         
-        defer { lock.unlock() }
         lock.lock()
+        defer { lock.unlock() }
         
         let scopedCacheStore = cacheStore.scope(
             keyTransformation: keyTransformation,
@@ -306,6 +313,71 @@ extension Store {
         return self
     }
     
+    func send(_ action: Action) -> ActionEffect<Action>? {
+        if isDebugging {
+            print("[\(formattedDate)] 🟡 New Action: \(action) \(debugIdentifier)")
+        }
+        
+        var storeCopy = cacheStore.copy()
+        let actionEffect = actionHandler.handle(store: &storeCopy, action: action, dependency: dependency)
+        
+        if let actionEffect = actionEffect {
+            if let runningEffect = effects[actionEffect.id] {
+                runningEffect.cancel()
+            }
+            
+            effects[actionEffect.id] = Task {
+                guard let nextAction = await actionEffect.effect() else { return }
+                
+                handle(action: nextAction)
+            }
+        }
+        
+        if isDebugging {
+            print(
+                """
+                [\(formattedDate)] 📣 Handled Action: \(action) \(debugIdentifier)
+                --------------- State Output ------------
+                """
+            )
+        }
+       
+        if isCacheEqual(to: storeCopy) {
+            if isDebugging {
+                print("\t🙅 No State Change")
+            }
+        } else {
+            if isDebugging {
+                print(
+                    """
+                    \t⚠️ State Changed
+                    \t\t--- Was ---
+                    \t\t\(debuggingStateDelta(forUpdatedStore: cacheStore))
+                    \t\t-----------
+                    \t\t***********
+                    \t\t--- Now ---
+                    \t\t\(debuggingStateDelta(forUpdatedStore: storeCopy))
+                    \t\t-----------
+                    """
+                )
+            }
+            
+            objectWillChange.send()
+            cacheStore.cache = storeCopy.cache
+        }
+        
+        if isDebugging {
+            print(
+                """
+                --------------- State End ---------------
+                [\(formattedDate)] 🏁 End Action: \(action) \(debugIdentifier)
+                """
+            )
+        }
+        
+        return actionEffect
+    }
+    
     private var formattedDate: String {
         let now = Date()
         let formatter = DateFormatter()
@@ -318,8 +390,10 @@ extension Store {
 
     private func isCacheEqual(to updatedStore: CacheStore<Key>) -> Bool {
         lock.lock()
-        guard cacheStore.cache.count == updatedStore.cache.count else { return false }
+        let cacheStoreCount = cacheStore.cache.count
         lock.unlock()
+        
+        guard cacheStoreCount == updatedStore.cache.count else { return false }
         
         return updatedStore.cache.map { key, value in
             isValueEqual(toUpdatedValue: value, forKey: key)
@@ -334,10 +408,11 @@ extension Store {
     
     private func isValueEqual<Value>(toUpdatedValue updatedValue: Value, forKey key: Key) -> Bool {
         lock.lock()
+        defer { lock.unlock() }
+        
         guard let storeValue: Value = cacheStore.get(key) else {
             return false
         }
-        lock.unlock()
         
         return "\(updatedValue)" == "\(storeValue)"
     }

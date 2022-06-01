@@ -87,8 +87,8 @@ public class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
     }
     
     public func contains(_ key: Key) -> Bool {
-        defer { lock.unlock() }
         lock.lock()
+        defer { lock.unlock() }
         
         return cache[key] != nil
     }
@@ -96,8 +96,8 @@ public class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
     public func valuesInCache<Value>(
         ofType: Value.Type = Value.self
     ) -> [Key: Value] {
-        defer { lock.unlock() }
         lock.lock()
+        defer { lock.unlock() }
         
         return cache.compactMapValues { $0 as? Value }
     }
@@ -132,8 +132,8 @@ public class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
     // MARK: - Copying
     
     public func copy() -> CacheStore {
-        defer { lock.unlock() }
         lock.lock()
+        defer { lock.unlock() }
         
         return CacheStore(initialValues: cache)
     }
@@ -144,8 +144,8 @@ public class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
 public extension CacheStore {
     /// A publisher for the private `cache` that is mapped to a CacheStore
     var publisher: AnyPublisher<CacheStore, Never> {
-        defer { lock.unlock() }
         lock.lock()
+        defer { lock.unlock() }
         
         return $cache.map(CacheStore.init).eraseToAnyPublisher()
     }
