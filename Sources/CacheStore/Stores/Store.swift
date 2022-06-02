@@ -107,64 +107,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
             return
         }
         
-        if isDebugging {
-            print("[\(formattedDate)] 🟡 New Action: \(action) \(debugIdentifier)")
-        }
-        
-        var cacheStoreCopy = cacheStore.copy()
-        if let actionEffect = actionHandler.handle(store: &cacheStoreCopy, action: action, dependency: dependency) {
-            if let runningEffect = effects[actionEffect.id] {
-                runningEffect.cancel()
-            }
-            
-            effects[actionEffect.id] = Task {
-                guard let nextAction = await actionEffect.effect() else { return }
-                
-                handle(action: nextAction)
-            }
-        }
-        
-        if isDebugging {
-            print(
-                """
-                [\(formattedDate)] 📣 Handled Action: \(customDump(action)) \(debugIdentifier)
-                --------------- State Output ------------
-                """
-            )
-        }
-        
-        if cacheStore.isCacheEqual(to: cacheStoreCopy) {
-            if isDebugging {
-                print("\t🙅 No State Change")
-            }
-        } else {
-            if isDebugging {
-                print(
-                    """
-                    \t⚠️ State Changed
-                    \t\t--- Was ---
-                    \t\t\(debuggingStateDelta(forUpdatedStore: cacheStore))
-                    \t\t-----------
-                    \t\t***********
-                    \t\t--- Now ---
-                    \t\t\(debuggingStateDelta(forUpdatedStore: cacheStoreCopy))
-                    \t\t-----------
-                    """
-                )
-            }
-            
-            objectWillChange.send()
-            cacheStore.cache = cacheStoreCopy.cache
-        }
-        
-        if isDebugging {
-            print(
-                """
-                --------------- State End ---------------
-                [\(formattedDate)] 🏁 End Action: \(customDump(action)) \(debugIdentifier)
-                """
-            )
-        }
+        _ = send(action)
     }
     
     /// Checks if the given `key` has a value or not
@@ -372,6 +315,7 @@ extension Store {
                 }
             }
             
+            objectWillChange.send()
             cacheStore.cache = cacheStoreCopy.cache
         }
         
