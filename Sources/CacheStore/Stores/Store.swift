@@ -314,6 +314,9 @@ extension Store {
     }
     
     func send(_ action: Action) -> ActionEffect<Action>? {
+        lock.lock()
+        defer { lock.unlock() }
+        
         if isDebugging {
             print("[\(formattedDate)] 🟡 New Action: \(action) \(debugIdentifier)")
         }
@@ -389,6 +392,9 @@ extension Store {
     }
     
     private func debuggingStateDelta(forUpdatedStore updatedStore: CacheStore<Key>) -> String {
+        lock.lock()
+        defer { lock.unlock() }
+        
         var updatedStateChanges: [String] = []
         
         for (key, value) in updatedStore.valuesInCache {
