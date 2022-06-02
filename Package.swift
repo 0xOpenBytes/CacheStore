@@ -28,8 +28,8 @@ let package = Package(
             from: "0.2.0"
         ),
          .package(
-            url: "https://github.com/pointfreeco/swift-custom-dump",
-            from: "0.4.0"
+            url: "https://github.com/0xLeif/swift-custom-dump",
+            from: "0.4.1"
          )
     ],
     targets: [
