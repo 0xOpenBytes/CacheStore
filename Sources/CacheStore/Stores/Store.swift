@@ -106,9 +106,6 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
             return
         }
         
-        lock.lock()
-        defer { lock.unlock() }
-        
         if isDebugging {
             print("[\(formattedDate)] 🟡 New Action: \(action) \(debugIdentifier)")
         }
