@@ -126,7 +126,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
         if isDebugging {
             print(
                 """
-                [\(formattedDate)] 📣 Handled Action: \(action) \(debugIdentifier)
+                [\(formattedDate)] 📣 Handled Action: \(dump(action)) \(debugIdentifier)
                 --------------- State Output ------------
                 """
             )
@@ -160,7 +160,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
             print(
                 """
                 --------------- State End ---------------
-                [\(formattedDate)] 🏁 End Action: \(action) \(debugIdentifier)
+                [\(formattedDate)] 🏁 End Action: \(dump(action)) \(debugIdentifier)
                 """
             )
         }
@@ -312,7 +312,7 @@ extension Store {
     
     func send(_ action: Action) -> ActionEffect<Action>? {
         if isDebugging {
-            print("[\(formattedDate)] 🟡 New Action: \(action) \(debugIdentifier)")
+            print("[\(formattedDate)] 🟡 New Action: \(dump(action)) \(debugIdentifier)")
         }
         
         var cacheStoreCopy = cacheStore.copy()
@@ -334,7 +334,7 @@ extension Store {
         if isDebugging {
             print(
                 """
-                [\(formattedDate)] 📣 Handled Action: \(action) \(debugIdentifier)
+                [\(formattedDate)] 📣 Handled Action: \(dump(action)) \(debugIdentifier)
                 --------------- State Output ------------
                 """
             )
