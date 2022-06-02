@@ -1,5 +1,6 @@
 import c
 import Combine
+import CustomDump
 import SwiftUI
 
 // MARK: -
@@ -126,7 +127,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
         if isDebugging {
             print(
                 """
-                [\(formattedDate)] 📣 Handled Action: \(dump(action)) \(debugIdentifier)
+                [\(formattedDate)] 📣 Handled Action: \(customDump(action)) \(debugIdentifier)
                 --------------- State Output ------------
                 """
             )
@@ -160,7 +161,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
             print(
                 """
                 --------------- State End ---------------
-                [\(formattedDate)] 🏁 End Action: \(dump(action)) \(debugIdentifier)
+                [\(formattedDate)] 🏁 End Action: \(customDump(action)) \(debugIdentifier)
                 """
             )
         }
@@ -312,7 +313,7 @@ extension Store {
     
     func send(_ action: Action) -> ActionEffect<Action>? {
         if isDebugging {
-            print("[\(formattedDate)] 🟡 New Action: \(dump(action)) \(debugIdentifier)")
+            print("[\(formattedDate)] 🟡 New Action: \(customDump(action)) \(debugIdentifier)")
         }
         
         var cacheStoreCopy = cacheStore.copy()
@@ -334,7 +335,7 @@ extension Store {
         if isDebugging {
             print(
                 """
-                [\(formattedDate)] 📣 Handled Action: \(dump(action)) \(debugIdentifier)
+                [\(formattedDate)] 📣 Handled Action: \(customDump(action)) \(debugIdentifier)
                 --------------- State Output ------------
                 """
             )
@@ -348,18 +349,27 @@ extension Store {
             }
         } else {
             if isDebugging {
-                print(
-                    """
-                    \t⚠️ State Changed
-                    \t\t--- Was ---
-                    \t\t\(debuggingStateDelta(forUpdatedStore: cacheStore))
-                    \t\t-----------
-                    \t\t***********
-                    \t\t--- Now ---
-                    \t\t\(debuggingStateDelta(forUpdatedStore: cacheStoreCopy))
-                    \t\t-----------
-                    """
-                )
+                if let diff = diff(cacheStore.cache, cacheStoreCopy.cache) {
+                    print(
+                        """
+                        \t⚠️ State Changed
+                        \(diff)
+                        """
+                    )
+                } else {
+                    print(
+                        """
+                        \t⚠️ State Changed
+                        \t\t--- Was ---
+                        \t\t\(debuggingStateDelta(forUpdatedStore: cacheStore))
+                        \t\t-----------
+                        \t\t***********
+                        \t\t--- Now ---
+                        \t\t\(debuggingStateDelta(forUpdatedStore: cacheStoreCopy))
+                        \t\t-----------
+                        """
+                    )
+                }
             }
             
             cacheStore.cache = cacheStoreCopy.cache
@@ -369,7 +379,7 @@ extension Store {
             print(
                 """
                 --------------- State End ---------------
-                [\(formattedDate)] 🏁 End Action: \(action) \(debugIdentifier)
+                [\(formattedDate)] 🏁 End Action: \(customDump(action)) \(debugIdentifier)
                 """
             )
         }

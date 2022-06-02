@@ -1,4 +1,5 @@
 #if DEBUG
+import CustomDump
 import Foundation
 
 public typealias FailureHandler = (_ message: String, _ file: StaticString, _ line: UInt) -> Void
@@ -70,11 +71,11 @@ public class TestStore<Key: Hashable, Action, Dependency> {
                 """
                 ❌ Expectation failed
                 --- Expected ---
-                \(expectedCacheStore.valuesInCache)
+                \(customDump(expectedCacheStore.valuesInCache))
                 ----------------
                 ****************
                 ---- Actual ----
-                \(store.cacheStore.valuesInCache)
+                \(customDump(store.cacheStore.valuesInCache))
                 ----------------
                 """,
                 file,
@@ -121,7 +122,7 @@ public class TestStore<Key: Hashable, Action, Dependency> {
         }
         
         guard "\(action)" == "\(nextAction)" else {
-            TestStoreFailure.handler("❌ Action (\(action)) does not equal NextAction (\(nextAction))", file, line)
+            TestStoreFailure.handler("❌ Action (\(customDump(action))) does not equal NextAction (\(customDump(nextAction)))", file, line)
             return
         }
         
