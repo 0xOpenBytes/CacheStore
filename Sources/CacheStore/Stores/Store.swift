@@ -134,7 +134,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
                 """
             )
         }
-       
+        
         if cacheStore.isCacheEqual(to: cacheStoreCopy) {
             if isDebugging {
                 print("\t🙅 No State Change")
@@ -314,14 +314,12 @@ extension Store {
     }
     
     func send(_ action: Action) -> ActionEffect<Action>? {
-        lock.lock()
-        defer { lock.unlock() }
-        
         if isDebugging {
             print("[\(formattedDate)] 🟡 New Action: \(action) \(debugIdentifier)")
         }
         
         var cacheStoreCopy = cacheStore.copy()
+        
         let actionEffect = actionHandler.handle(store: &cacheStoreCopy, action: action, dependency: dependency)
         
         if let actionEffect = actionEffect {
@@ -344,8 +342,10 @@ extension Store {
                 """
             )
         }
-       
-        if cacheStore.isCacheEqual(to: cacheStoreCopy) {
+        
+        let areCacheEqual = cacheStore.isCacheEqual(to: cacheStoreCopy)
+        
+        if areCacheEqual {
             if isDebugging {
                 print("\t🙅 No State Change")
             }
@@ -365,7 +365,6 @@ extension Store {
                 )
             }
             
-            objectWillChange.send()
             cacheStore.cache = cacheStoreCopy.cache
         }
         
