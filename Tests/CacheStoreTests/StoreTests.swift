@@ -4,6 +4,10 @@ import XCTest
 @testable import CacheStore
 
 class StoreTests: XCTestCase {
+    override func setUp() {
+        TestStoreFailure.handler = XCTFail
+    }
+    
     func testExample() {
         struct SomeStruct {
             var value: String

@@ -1,6 +1,11 @@
-#if canImport(XCTest)
+#if DEBUG
 import Foundation
-import XCTest
+
+public typealias FailureHandler = (_ message: String, _ file: StaticString, _ line: UInt) -> Void
+
+public enum TestStoreFailure {
+    public static var handler: FailureHandler!
+}
 
 public class TestStore<Key: Hashable, Action, Dependency> {
     private let initFile: StaticString
@@ -13,7 +18,7 @@ public class TestStore<Key: Hashable, Action, Dependency> {
     deinit {
         guard effects.isEmpty else {
             let effectIDs = effects.map { "- \($0.id)" }.joined(separator: "\n")
-            XCTFail("❌ \(effects.count) effect(s) left to receive:\n\(effectIDs)", file: initFile, line: initLine)
+            TestStoreFailure.handler("❌ \(effects.count) effect(s) left to receive:\n\(effectIDs)", initFile, initLine)
             return
         }
     }
@@ -25,6 +30,18 @@ public class TestStore<Key: Hashable, Action, Dependency> {
         file: StaticString = #filePath,
         line: UInt = #line
     ) {
+        assert(
+            TestStoreFailure.handler != nil,
+            """
+            Set `TestStoreFailure.handler`
+                
+                override func setUp() {
+                    TestStoreFailure.handler = XCTFail
+                }
+            
+            """
+        )
+        
         store = Store(initialValues: initialValues, actionHandler: actionHandler, dependency: dependency).debug
         effects = []
         initFile = file
@@ -44,12 +61,12 @@ public class TestStore<Key: Hashable, Action, Dependency> {
         do {
             try expecting(&expectedCacheStore)
         } catch {
-            XCTFail("❌ Expectation failed", file: file, line: line)
+            TestStoreFailure.handler("❌ Expectation failed", file, line)
             return
         }
         
         guard "\(expectedCacheStore.valuesInCache)" == "\(store.cacheStore.valuesInCache)" else {
-            XCTFail(
+            TestStoreFailure.handler(
                 """
                 ❌ Expectation failed
                 --- Expected ---
@@ -60,8 +77,8 @@ public class TestStore<Key: Hashable, Action, Dependency> {
                 \(store.cacheStore.valuesInCache)
                 ----------------
                 """,
-                file: file,
-                line: line
+                file,
+                line
             )
             return
         }
@@ -78,7 +95,7 @@ public class TestStore<Key: Hashable, Action, Dependency> {
         expecting: @escaping (inout CacheStore<Key>) throws -> Void
     ) {
         guard let effect = effects.first else {
-            XCTFail("❌ No effects to receive", file: file, line: line)
+            TestStoreFailure.handler("❌ No effects to receive", file, line)
             return
         }
         
@@ -98,7 +115,7 @@ public class TestStore<Key: Hashable, Action, Dependency> {
         }
         
         guard "\(action)" == "\(nextAction)" else {
-            XCTFail("❌ Action (\(action)) does not equal NextAction (\(nextAction))", file: file, line: line)
+            TestStoreFailure.handler("❌ Action (\(action)) does not equal NextAction (\(nextAction))", file, line)
             return
         }
         
@@ -117,7 +134,7 @@ public extension TestStore {
             try store.require(keys: keys)
         } catch {
             let requiredKeys = keys.map { "\($0)" }.joined(separator: ", ")
-            XCTFail("❌ Store does not have requied keys (\(requiredKeys))", file: file, line: line)
+            TestStoreFailure.handler("❌ Store does not have requied keys (\(requiredKeys))", file, line)
         }
     }
     
@@ -129,7 +146,7 @@ public extension TestStore {
         do {
             try store.require(key)
         } catch {
-            XCTFail("❌ Store does not have requied key (\(key))", file: file, line: line)
+            TestStoreFailure.handler("❌ Store does not have requied key (\(key))", file, line)
         }
     }
 }
