@@ -83,8 +83,14 @@ public class TestStore<Key: Hashable, Action, Dependency> {
             return
         }
         
+        
         if let actionEffect = actionEffect {
-            effects.append(actionEffect)
+            let predicate: (ActionEffect<Action>) -> Bool = { $0.id == actionEffect.id }
+            if effects.contains(where: predicate) {
+                effects.removeAll(where: predicate)
+            } else {
+                effects.append(actionEffect)
+            }
         }
     }
     
