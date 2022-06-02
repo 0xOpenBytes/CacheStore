@@ -113,8 +113,8 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
             print("[\(formattedDate)] 🟡 New Action: \(action) \(debugIdentifier)")
         }
         
-        var storeCopy = cacheStore.copy()
-        if let actionEffect = actionHandler.handle(store: &storeCopy, action: action, dependency: dependency) {
+        var cacheStoreCopy = cacheStore.copy()
+        if let actionEffect = actionHandler.handle(store: &cacheStoreCopy, action: action, dependency: dependency) {
             if let runningEffect = effects[actionEffect.id] {
                 runningEffect.cancel()
             }
@@ -135,7 +135,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
             )
         }
        
-        if isCacheEqual(to: storeCopy) {
+        if cacheStore.isCacheEqual(to: cacheStoreCopy) {
             if isDebugging {
                 print("\t🙅 No State Change")
             }
@@ -149,14 +149,14 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
                     \t\t-----------
                     \t\t***********
                     \t\t--- Now ---
-                    \t\t\(debuggingStateDelta(forUpdatedStore: storeCopy))
+                    \t\t\(debuggingStateDelta(forUpdatedStore: cacheStoreCopy))
                     \t\t-----------
                     """
                 )
             }
             
             objectWillChange.send()
-            cacheStore.cache = storeCopy.cache
+            cacheStore.cache = cacheStoreCopy.cache
         }
         
         if isDebugging {
@@ -318,8 +318,8 @@ extension Store {
             print("[\(formattedDate)] 🟡 New Action: \(action) \(debugIdentifier)")
         }
         
-        var storeCopy = cacheStore.copy()
-        let actionEffect = actionHandler.handle(store: &storeCopy, action: action, dependency: dependency)
+        var cacheStoreCopy = cacheStore.copy()
+        let actionEffect = actionHandler.handle(store: &cacheStoreCopy, action: action, dependency: dependency)
         
         if let actionEffect = actionEffect {
             if let runningEffect = effects[actionEffect.id] {
@@ -342,7 +342,7 @@ extension Store {
             )
         }
        
-        if isCacheEqual(to: storeCopy) {
+        if cacheStore.isCacheEqual(to: cacheStoreCopy) {
             if isDebugging {
                 print("\t🙅 No State Change")
             }
@@ -356,14 +356,14 @@ extension Store {
                     \t\t-----------
                     \t\t***********
                     \t\t--- Now ---
-                    \t\t\(debuggingStateDelta(forUpdatedStore: storeCopy))
+                    \t\t\(debuggingStateDelta(forUpdatedStore: cacheStoreCopy))
                     \t\t-----------
                     """
                 )
             }
             
             objectWillChange.send()
-            cacheStore.cache = storeCopy.cache
+            cacheStore.cache = cacheStoreCopy.cache
         }
         
         if isDebugging {
@@ -387,41 +387,12 @@ extension Store {
         
         return formatter.string(from: now)
     }
-
-    private func isCacheEqual(to updatedStore: CacheStore<Key>) -> Bool {
-        lock.lock()
-        let cacheStoreCount = cacheStore.cache.count
-        lock.unlock()
-        
-        guard cacheStoreCount == updatedStore.cache.count else { return false }
-        
-        return updatedStore.cache.map { key, value in
-            isValueEqual(toUpdatedValue: value, forKey: key)
-        }
-        .reduce(into: true) { result, condition in
-            guard condition else {
-                result = false
-                return
-            }
-        }
-    }
-    
-    private func isValueEqual<Value>(toUpdatedValue updatedValue: Value, forKey key: Key) -> Bool {
-        lock.lock()
-        defer { lock.unlock() }
-        
-        guard let storeValue: Value = cacheStore.get(key) else {
-            return false
-        }
-        
-        return "\(updatedValue)" == "\(storeValue)"
-    }
     
     private func debuggingStateDelta(forUpdatedStore updatedStore: CacheStore<Key>) -> String {
         var updatedStateChanges: [String] = []
         
         for (key, value) in updatedStore.valuesInCache {
-            let isValueEqual: Bool = isValueEqual(toUpdatedValue: value, forKey: key)
+            let isValueEqual: Bool = cacheStore.isValueEqual(toUpdatedValue: value, forKey: key)
             let valueInfo: String = "\(type(of: value))"
             let valueOutput: String
             
