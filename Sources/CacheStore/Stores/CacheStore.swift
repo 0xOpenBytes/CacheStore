@@ -4,18 +4,37 @@ import SwiftUI
 
 // MARK: -
 
+/// An `ObservableObject` that has a `cache` which is the source of truth for this object
 public class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
+    /// `Error` that reports the missing keys for the `CacheStore`
+    public struct MissingRequiredKeysError<Key: Hashable>: LocalizedError {
+        /// Required keys
+        public let keys: Set<Key>
+        
+        /// init for `MissingRequiredKeysError<Key>`
+        public init(keys: Set<Key>) {
+            self.keys = keys
+        }
+        
+        /// Error description for `LocalizedError`
+        public var errorDescription: String? {
+            "Missing Required Keys: \(keys.map { "\($0)" }.joined(separator: ", "))"
+        }
+    }
+    
     private var lock: NSLock
     @Published var cache: [Key: Any]
     
     /// The values in the `cache` of type `Any`
     public var valuesInCache: [Key: Any] { cache }
     
+    /// init for `CacheStore<Key>`
     required public init(initialValues: [Key: Any]) {
         lock = NSLock()
         cache = initialValues
     }
 
+    /// Get the `Value` for the `Key` if it exists
     public func get<Value>(_ key: Key, as: Value.Type = Value.self) -> Value? {
         defer { lock.unlock() }
         lock.lock()
@@ -42,8 +61,10 @@ public class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
         return value
     }
     
+    /// Resolve the `Value` for the `Key` by force casting `get`
     public func resolve<Value>(_ key: Key, as: Value.Type = Value.self) -> Value { get(key)! }
     
+    /// Set the `Value` for the `Key`
     public func set<Value>(value: Value, forKey key: Key) {
         guard Thread.isMainThread else {
             DispatchQueue.main.async {
@@ -57,31 +78,41 @@ public class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
         lock.unlock()
     }
 
+    /// Require a set of keys otherwise throw an error
     @discardableResult
     public func require(keys: Set<Key>) throws -> Self {
         let missingKeys = keys
             .filter { contains($0) == false }
 
         guard missingKeys.isEmpty else {
-            throw c.MissingRequiredKeysError(keys: missingKeys)
+            throw MissingRequiredKeysError(keys: missingKeys)
         }
         
         return self
     }
     
+    /// Require a key otherwise throw an error
     @discardableResult
     public func require(_ key: Key) throws -> Self {
         try require(keys: [key])
     }
     
+    /// Check to see if the cache contains a key
     public func contains(_ key: Key) -> Bool {
-        cache[key] != nil
+        lock.lock()
+        defer { lock.unlock() }
+        
+        return cache[key] != nil
     }
     
+    /// Get the values in the cache that are of the type `Value`
     public func valuesInCache<Value>(
         ofType: Value.Type = Value.self
     ) -> [Key: Value] {
-        cache.compactMapValues { $0 as? Value }
+        lock.lock()
+        defer { lock.unlock() }
+        
+        return cache.compactMapValues { $0 as? Value }
     }
 
     /// Update the value of a key by mutating the value passed into the `updater` parameter
@@ -98,6 +129,7 @@ public class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
         }
     }
     
+    /// Remove the value for the key
     public func remove(_ key: Key) {
         guard Thread.isMainThread else {
             DispatchQueue.main.async {
@@ -113,7 +145,13 @@ public class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
     
     // MARK: - Copying
     
-    public func copy() -> CacheStore { CacheStore(initialValues: cache) }
+    /// Create a copy of the current `CacheStore` cache
+    public func copy() -> CacheStore {
+        lock.lock()
+        defer { lock.unlock() }
+        
+        return CacheStore(initialValues: cache)
+    }
 }
 
 // MARK: -
@@ -121,7 +159,10 @@ public class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
 public extension CacheStore {
     /// A publisher for the private `cache` that is mapped to a CacheStore
     var publisher: AnyPublisher<CacheStore, Never> {
-        $cache.map(CacheStore.init).eraseToAnyPublisher()
+        lock.lock()
+        defer { lock.unlock() }
+        
+        return $cache.map(CacheStore.init).eraseToAnyPublisher()
     }
     
     /// Creates a `ScopedCacheStore` with the given key transformation and default cache
@@ -134,11 +175,13 @@ public extension CacheStore {
         scopedCacheStore.cache = defaultCache
         scopedCacheStore.parentCacheStore = self
         
+        lock.lock()
         cache.forEach { key, value in
             guard let scopedKey = keyTransformation.from(key) else { return }
             
             scopedCacheStore.cache[scopedKey] = value
         }
+        lock.unlock()
         
         return scopedCacheStore
     }
@@ -163,5 +206,42 @@ public extension CacheStore {
             get: { self.get(key) },
             set: { self.set(value: $0, forKey: key) }
         )
+    }
+}
+
+extension CacheStore {
+    func isCacheEqual(to updatedStore: CacheStore<Key>) -> Bool {
+        #if DEBUG
+            let cacheStoreCount = cache.count
+        #else
+            lock.lock()
+            let cacheStoreCount = cache.count
+            lock.unlock()
+        #endif
+        
+        guard cacheStoreCount == updatedStore.cache.count else { return false }
+        
+        return updatedStore.cache.map { key, value in
+            isValueEqual(toUpdatedValue: value, forKey: key)
+        }
+        .reduce(into: true) { result, condition in
+            guard condition else {
+                result = false
+                return
+            }
+        }
+    }
+    
+    func isValueEqual<Value>(toUpdatedValue updatedValue: Value, forKey key: Key) -> Bool {
+        #if !DEBUG
+            lock.lock()
+            defer { lock.unlock() }
+        #endif
+        
+        guard let storeValue: Value = get(key) else {
+            return false
+        }
+        
+        return "\(updatedValue)" == "\(storeValue)"
     }
 }

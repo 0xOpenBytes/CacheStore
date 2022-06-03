@@ -1,27 +1,42 @@
 import c
 import Combine
+import CustomDump
 import SwiftUI
 
 // MARK: -
 
+/// An `ObservableObject` that uses actions to modify the state which is a `CacheStore`
 public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHandling {
     private var lock: NSLock
     private var isDebugging: Bool
-    private var store: CacheStore<Key>
-    private var actionHandler: StoreActionHandler<Key, Action, Dependency>
-    private let dependency: Dependency
+    private var effects: [AnyHashable: Task<(), Never>]
+    
+    var cacheStore: CacheStore<Key>
+    var actionHandler: StoreActionHandler<Key, Action, Dependency>
+    let dependency: Dependency
     
     /// The values in the `cache` of type `Any`
-    public var valuesInCache: [Key: Any] { store.valuesInCache }
+    public var valuesInCache: [Key: Any] {
+        lock.lock()
+        defer { lock.unlock() }
+        
+        return cacheStore.valuesInCache
+    }
     
     /// A publisher for the private `cache` that is mapped to a CacheStore
     public var publisher: AnyPublisher<CacheStore<Key>, Never> {
-        store.publisher
+        lock.lock()
+        defer { lock.unlock() }
+        
+        return cacheStore.publisher
     }
     
     /// An identifier of the Store and CacheStore
     var debugIdentifier: String {
-        let cacheStoreAddress = Unmanaged.passUnretained(store).toOpaque().debugDescription
+        lock.lock()
+        defer { lock.unlock() }
+        
+        let cacheStoreAddress = Unmanaged.passUnretained(cacheStore).toOpaque().debugDescription
         var storeDescription: String = "\(self)".replacingOccurrences(of: "CacheStore.", with: "")
         
         guard let index = storeDescription.firstIndex(of: "<") else {
@@ -34,6 +49,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
         return "(Store: \(storeDescription), CacheStore: \(cacheStoreAddress))"
     }
     
+    /// init for `Store<Key, Action, Dependency>`
     public required init(
         initialValues: [Key: Any],
         actionHandler: StoreActionHandler<Key, Action, Dependency>,
@@ -41,25 +57,35 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
     ) {
         lock = NSLock()
         isDebugging = false
-        store = CacheStore(initialValues: initialValues)
+        effects = [:]
+        cacheStore = CacheStore(initialValues: initialValues)
         self.actionHandler = actionHandler
         self.dependency = dependency
     }
     
     /// Get the value in the `cache` using the `key`. This returns an optional value. If the value is `nil`, that means either the value doesn't exist or the value is not able to be casted as `Value`.
     public func get<Value>(_ key: Key, as: Value.Type = Value.self) -> Value? {
-        store.get(key)
+        lock.lock()
+        defer { lock.unlock() }
+        
+        return cacheStore.get(key)
     }
     
     /// Resolve the value in the `cache` using the `key`. This function uses `get` and force casts the value. This should only be used when you know the value is always in the `cache`.
     public func resolve<Value>(_ key: Key, as: Value.Type = Value.self) -> Value {
-        store.resolve(key)
+        lock.lock()
+        defer { lock.unlock() }
+        
+        return cacheStore.resolve(key)
     }
     
     /// Checks to make sure the cache has the required keys, otherwise it will throw an error
     @discardableResult
     public func require(keys: Set<Key>) throws -> Self {
-        try store.require(keys: keys)
+        lock.lock()
+        defer { lock.unlock() }
+        
+        try cacheStore.require(keys: keys)
         
         return self
     }
@@ -67,83 +93,48 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
     /// Checks to make sure the cache has the required key, otherwise it will throw an error
     @discardableResult
     public func require(_ key: Key) throws -> Self {
-        try store.require(keys: [key])
+        lock.lock()
+        defer { lock.unlock() }
+        
+        try cacheStore.require(keys: [key])
         
         return self
     }
     
+    /// Sends the action to be handled by the `Store`
     public func handle(action: Action) {
         guard Thread.isMainThread else {
-            DispatchQueue.main.async {
-                self.handle(action: action)
+            DispatchQueue.main.async { [weak self] in
+                self?.handle(action: action)
             }
             return
         }
         
-        lock.lock()
-        
-        if isDebugging {
-            print("[\(formattedDate)] 🟡 New Action: \(action) \(debugIdentifier)")
-        }
-        
-        var storeCopy = store.copy()
-        actionHandler.handle(store: &storeCopy, action: action, dependency: dependency)
-        
-        if isDebugging {
-            print(
-                """
-                [\(formattedDate)] 📣 Handled Action: \(action) \(debugIdentifier)
-                --------------- State Output ------------
-                """
-            )
-        }
-       
-        if isCacheEqual(to: storeCopy) {
-            if isDebugging {
-                print("\t🙅 No State Change")
-            }
-        } else {
-            if isDebugging {
-                print(
-                    """
-                    \t⚠️ State Changed
-                    \t\t--- Was ---
-                    \t\t\(debuggingStateDelta(forUpdatedStore: store))
-                    \t\t-----------
-                    \t\t***********
-                    \t\t--- Now ---
-                    \t\t\(debuggingStateDelta(forUpdatedStore: storeCopy))
-                    \t\t-----------
-                    """
-                )
-            }
-            
-            objectWillChange.send()
-            store.cache = storeCopy.cache
-        }
-        
-        if isDebugging {
-            print(
-                """
-                --------------- State End ---------------
-                [\(formattedDate)] 🏁 End Action: \(action) \(debugIdentifier)
-                """
-            )
-        }
-        
-        lock.unlock()
+        _ = send(action)
+    }
+    
+    /// Cancel an effect with the ID
+    public func cancel(id: AnyHashable) {
+        effects[id]?.cancel()
+        effects[id] = nil
     }
     
     /// Checks if the given `key` has a value or not
     public func contains(_ key: Key) -> Bool {
-        store.contains(key)
+        lock.lock()
+        defer { lock.unlock() }
+        
+        return cacheStore.contains(key)
     }
     
     /// Returns a Dictionary containing only the key value pairs where the value is the same type as the generic type `Value`
     public func valuesInCache<Value>(
         ofType type: Value.Type = Value.self
     ) -> [Key: Value] {
-        store.valuesInCache(ofType: type)
+        lock.lock()
+        defer { lock.unlock() }
+        
+        return cacheStore.valuesInCache(ofType: type)
     }
     
     /// Creates a `ScopedStore`
@@ -160,25 +151,30 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
             dependency: dependencyTransformation(dependency)
         )
         
-        let scopedCacheStore = store.scope(
+        lock.lock()
+        defer { lock.unlock() }
+        
+        let scopedCacheStore = cacheStore.scope(
             keyTransformation: keyTransformation,
             defaultCache: defaultCache
         )
         
-        scopedStore.store = scopedCacheStore
+        scopedStore.cacheStore = scopedCacheStore
         scopedStore.parentStore = self
         scopedStore.actionHandler = StoreActionHandler { (store: inout CacheStore<ScopedKey>, action: ScopedAction, dependency: ScopedDependency) in
-            actionHandler.handle(store: &store, action: action, dependency: dependency)
+            let effect = actionHandler.handle(store: &store, action: action, dependency: dependency)
             
             if let parentAction = actionTransformation(action) {
                 scopedStore.parentStore?.handle(action: parentAction)
             }
+            
+            return effect
         }
         
-        store.cache.forEach { key, value in
+        cacheStore.cache.forEach { key, value in
             guard let scopedKey = keyTransformation.from(key) else { return }
             
-            scopedStore.store.cache[scopedKey] = value
+            scopedStore.cacheStore.cache[scopedKey] = value
         }
         
         return scopedStore
@@ -259,10 +255,90 @@ public extension Store {
 // MARK: - Debugging
 
 extension Store {
+    /// Modifies and returns the `Store` with debugging mode on
     public var debug: Self {
+        lock.lock()
         isDebugging = true
+        lock.unlock()
         
         return self
+    }
+    
+    func send(_ action: Action) -> ActionEffect<Action>? {
+        if isDebugging {
+            print("[\(formattedDate)] 🟡 New Action: \(customDump(action)) \(debugIdentifier)")
+        }
+        
+        var cacheStoreCopy = cacheStore.copy()
+        
+        let actionEffect = actionHandler.handle(store: &cacheStoreCopy, action: action, dependency: dependency)
+        
+        if let actionEffect = actionEffect {
+            if let runningEffect = effects[actionEffect.id] {
+                runningEffect.cancel()
+            }
+            
+            effects[actionEffect.id] = Task {
+                guard let nextAction = await actionEffect.effect() else { return }
+                
+                handle(action: nextAction)
+            }
+        }
+        
+        if isDebugging {
+            print(
+                """
+                [\(formattedDate)] 📣 Handled Action: \(customDump(action)) \(debugIdentifier)
+                --------------- State Output ------------
+                """
+            )
+        }
+        
+        let areCacheEqual = cacheStore.isCacheEqual(to: cacheStoreCopy)
+        
+        if areCacheEqual {
+            if isDebugging {
+                print("\t🙅 No State Change")
+            }
+        } else {
+            if isDebugging {
+                if let diff = diff(cacheStore.cache, cacheStoreCopy.cache) {
+                    print(
+                        """
+                        \t⚠️ State Changed
+                        \(diff)
+                        """
+                    )
+                } else {
+                    print(
+                        """
+                        \t⚠️ State Changed
+                        \t\t--- Was ---
+                        \t\t\(debuggingStateDelta(forUpdatedStore: cacheStore))
+                        \t\t-----------
+                        \t\t***********
+                        \t\t--- Now ---
+                        \t\t\(debuggingStateDelta(forUpdatedStore: cacheStoreCopy))
+                        \t\t-----------
+                        """
+                    )
+                }
+            }
+            
+            objectWillChange.send()
+            cacheStore.cache = cacheStoreCopy.cache
+        }
+        
+        if isDebugging {
+            print(
+                """
+                --------------- State End ---------------
+                [\(formattedDate)] 🏁 End Action: \(customDump(action)) \(debugIdentifier)
+                """
+            )
+        }
+        
+        return actionEffect
     }
     
     private var formattedDate: String {
@@ -274,34 +350,15 @@ extension Store {
         
         return formatter.string(from: now)
     }
-
-    private func isCacheEqual(to updatedStore: CacheStore<Key>) -> Bool {
-        guard store.cache.count == updatedStore.cache.count else { return false }
-        
-        return updatedStore.cache.map { key, value in
-            isValueEqual(toUpdatedValue: value, forKey: key)
-        }
-        .reduce(into: true) { result, condition in
-            guard condition else {
-                result = false
-                return
-            }
-        }
-    }
-    
-    private func isValueEqual<Value>(toUpdatedValue updatedValue: Value, forKey key: Key) -> Bool {
-        guard let storeValue: Value = store.get(key) else {
-            return false
-        }
-        
-        return "\(updatedValue)" == "\(storeValue)"
-    }
     
     private func debuggingStateDelta(forUpdatedStore updatedStore: CacheStore<Key>) -> String {
+        lock.lock()
+        defer { lock.unlock() }
+        
         var updatedStateChanges: [String] = []
         
         for (key, value) in updatedStore.valuesInCache {
-            let isValueEqual: Bool = isValueEqual(toUpdatedValue: value, forKey: key)
+            let isValueEqual: Bool = cacheStore.isValueEqual(toUpdatedValue: value, forKey: key)
             let valueInfo: String = "\(type(of: value))"
             let valueOutput: String
             

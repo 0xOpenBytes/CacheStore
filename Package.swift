@@ -24,9 +24,9 @@ let package = Package(
             from: "1.1.1"
         ),
          .package(
-            url: "https://github.com/0xOpenBytes/t",
-            from: "0.2.0"
-        )
+            url: "https://github.com/0xLeif/swift-custom-dump",
+            from: "0.4.1"
+         )
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
@@ -35,7 +35,7 @@ let package = Package(
             name: "CacheStore",
             dependencies: [
                 "c",
-                "t"
+                .product(name: "CustomDump", package: "swift-custom-dump")
             ]
         ),
         .testTarget(
