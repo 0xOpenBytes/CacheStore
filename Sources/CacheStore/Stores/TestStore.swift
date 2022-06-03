@@ -2,19 +2,21 @@
 import CustomDump
 import Foundation
 
+/// Facade typealias for XCTFail without importing XCTest
 public typealias FailureHandler = (_ message: String, _ file: StaticString, _ line: UInt) -> Void
 
+/// Static object to provide the `FailureHandler` to any `TestStore`
 public enum TestStoreFailure {
     public static var handler: FailureHandler!
 }
 
+/// Testable `Store` where you can send and receive actions while expecting the changes
 public class TestStore<Key: Hashable, Action, Dependency> {
     private let initFile: StaticString
     private let initLine: UInt
     private var nextAction: Action?
-    
-    public private(set) var store: Store<Key, Action, Dependency>
-    public private(set) var effects: [ActionEffect<Action>]
+    private var store: Store<Key, Action, Dependency>
+    private var effects: [ActionEffect<Action>]
     
     deinit {
         guard effects.isEmpty else {
@@ -24,6 +26,15 @@ public class TestStore<Key: Hashable, Action, Dependency> {
         }
     }
     
+    /// init for `TestStore<Key, Action, Dependency>`
+    ///
+    /// **Make sure to set `TestStoreFailure.handler`**
+    ///
+    /// ```
+    /// override func setUp() {
+    ///     TestStoreFailure.handler = XCTFail
+    /// }
+    /// ```
     public required init(
         initialValues: [Key: Any],
         actionHandler: StoreActionHandler<Key, Action, Dependency>,
@@ -49,6 +60,7 @@ public class TestStore<Key: Hashable, Action, Dependency> {
         initLine = line
     }
     
+    /// Send an action and provide an expectation for the changes from handling the action
     public func send(
         _ action: Action,
         file: StaticString = #filePath,
@@ -95,10 +107,12 @@ public class TestStore<Key: Hashable, Action, Dependency> {
         }
     }
     
+    /// Cancel a certain effect
     public func cancel(id: AnyHashable) {
         store.cancel(id: id)
     }
     
+    /// Receive an action from the effects **FIFO** queue
     public func receive(
         _ action: Action,
         file: StaticString = #filePath,
@@ -132,10 +146,8 @@ public class TestStore<Key: Hashable, Action, Dependency> {
         
         send(nextAction, file: file, line: line, expecting: expecting)
     }
-}
-
-
-public extension TestStore {
+    
+    /// Checks to make sure the cache has the required keys, otherwise it will fail
     func require(
         keys: Set<Key>,
         file: StaticString = #filePath,
@@ -149,6 +161,7 @@ public extension TestStore {
         }
     }
     
+    /// Checks to make sure the cache has the required key, otherwise it will fail
     func require(
         _ key: Key,
         file: StaticString = #filePath,

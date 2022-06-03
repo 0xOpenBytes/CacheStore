@@ -5,6 +5,7 @@ import SwiftUI
 
 // MARK: -
 
+/// An `ObservableObject` that uses actions to modify the state which is a `CacheStore`
 public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHandling {
     private var lock: NSLock
     private var isDebugging: Bool
@@ -48,6 +49,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
         return "(Store: \(storeDescription), CacheStore: \(cacheStoreAddress))"
     }
     
+    /// init for `Store<Key, Action, Dependency>`
     public required init(
         initialValues: [Key: Any],
         actionHandler: StoreActionHandler<Key, Action, Dependency>,
@@ -99,6 +101,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
         return self
     }
     
+    /// Sends the action to be handled by the `Store`
     public func handle(action: Action) {
         guard Thread.isMainThread else {
             DispatchQueue.main.async { [weak self] in
@@ -110,6 +113,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
         _ = send(action)
     }
     
+    /// Cancel an effect with the ID
     public func cancel(id: AnyHashable) {
         effects[id]?.cancel()
         effects[id] = nil
@@ -251,6 +255,7 @@ public extension Store {
 // MARK: - Debugging
 
 extension Store {
+    /// Modifies and returns the `Store` with debugging mode on
     public var debug: Self {
         lock.lock()
         isDebugging = true

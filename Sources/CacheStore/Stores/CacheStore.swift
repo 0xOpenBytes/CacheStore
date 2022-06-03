@@ -4,14 +4,19 @@ import SwiftUI
 
 // MARK: -
 
+/// An `ObservableObject` that has a `cache` which is the source of truth for this object
 public class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
+    /// `Error` that reports the missing keys for the `CacheStore`
     public struct MissingRequiredKeysError<Key: Hashable>: LocalizedError {
+        /// Required keys
         public let keys: Set<Key>
         
+        /// init for `MissingRequiredKeysError<Key>`
         public init(keys: Set<Key>) {
             self.keys = keys
         }
         
+        /// Error description for `LocalizedError`
         public var errorDescription: String? {
             "Missing Required Keys: \(keys.map { "\($0)" }.joined(separator: ", "))"
         }
@@ -23,11 +28,13 @@ public class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
     /// The values in the `cache` of type `Any`
     public var valuesInCache: [Key: Any] { cache }
     
+    /// init for `CacheStore<Key>`
     required public init(initialValues: [Key: Any]) {
         lock = NSLock()
         cache = initialValues
     }
 
+    /// Get the `Value` for the `Key` if it exists
     public func get<Value>(_ key: Key, as: Value.Type = Value.self) -> Value? {
         defer { lock.unlock() }
         lock.lock()
@@ -54,8 +61,10 @@ public class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
         return value
     }
     
+    /// Resolve the `Value` for the `Key` by force casting `get`
     public func resolve<Value>(_ key: Key, as: Value.Type = Value.self) -> Value { get(key)! }
     
+    /// Set the `Value` for the `Key`
     public func set<Value>(value: Value, forKey key: Key) {
         guard Thread.isMainThread else {
             DispatchQueue.main.async {
@@ -69,6 +78,7 @@ public class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
         lock.unlock()
     }
 
+    /// Require a set of keys otherwise throw an error
     @discardableResult
     public func require(keys: Set<Key>) throws -> Self {
         let missingKeys = keys
@@ -81,11 +91,13 @@ public class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
         return self
     }
     
+    /// Require a key otherwise throw an error
     @discardableResult
     public func require(_ key: Key) throws -> Self {
         try require(keys: [key])
     }
     
+    /// Check to see if the cache contains a key
     public func contains(_ key: Key) -> Bool {
         lock.lock()
         defer { lock.unlock() }
@@ -93,6 +105,7 @@ public class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
         return cache[key] != nil
     }
     
+    /// Get the values in the cache that are of the type `Value`
     public func valuesInCache<Value>(
         ofType: Value.Type = Value.self
     ) -> [Key: Value] {
@@ -116,6 +129,7 @@ public class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
         }
     }
     
+    /// Remove the value for the key
     public func remove(_ key: Key) {
         guard Thread.isMainThread else {
             DispatchQueue.main.async {
@@ -131,6 +145,7 @@ public class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
     
     // MARK: - Copying
     
+    /// Create a copy of the current `CacheStore` cache
     public func copy() -> CacheStore {
         lock.lock()
         defer { lock.unlock() }
