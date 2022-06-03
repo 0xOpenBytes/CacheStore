@@ -95,6 +95,10 @@ public class TestStore<Key: Hashable, Action, Dependency> {
         }
     }
     
+    public func cancel(id: AnyHashable) {
+        store.cancel(id: id)
+    }
+    
     public func receive(
         _ action: Action,
         file: StaticString = #filePath,
