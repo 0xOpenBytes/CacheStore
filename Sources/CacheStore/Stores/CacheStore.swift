@@ -211,13 +211,9 @@ public extension CacheStore {
 
 extension CacheStore {
     func isCacheEqual(to updatedStore: CacheStore<Key>) -> Bool {
-        #if DEBUG
-            let cacheStoreCount = cache.count
-        #else
-            lock.lock()
-            let cacheStoreCount = cache.count
-            lock.unlock()
-        #endif
+        lock.lock()
+        let cacheStoreCount = cache.count
+        lock.unlock()
         
         guard cacheStoreCount == updatedStore.cache.count else { return false }
         
@@ -233,11 +229,6 @@ extension CacheStore {
     }
     
     func isValueEqual<Value>(toUpdatedValue updatedValue: Value, forKey key: Key) -> Bool {
-        #if !DEBUG
-            lock.lock()
-            defer { lock.unlock() }
-        #endif
-        
         guard let storeValue: Value = get(key) else {
             return false
         }
