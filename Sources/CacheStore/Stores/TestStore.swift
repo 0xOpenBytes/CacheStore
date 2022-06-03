@@ -126,7 +126,7 @@ public class TestStore<Key: Hashable, Action, Dependency> {
             return
         }
         
-        send(nextAction, expecting: expecting)
+        send(nextAction, file: file, line: line, expecting: expecting)
     }
 }
 

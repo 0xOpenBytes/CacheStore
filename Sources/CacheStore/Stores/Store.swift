@@ -110,6 +110,11 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
         _ = send(action)
     }
     
+    public func cancel(id: AnyHashable) {
+        effects[id]?.cancel()
+        effects[id] = nil
+    }
+    
     /// Checks if the given `key` has a value or not
     public func contains(_ key: Key) -> Bool {
         lock.lock()
