@@ -24,10 +24,6 @@ let package = Package(
             from: "1.1.1"
         ),
          .package(
-            url: "https://github.com/0xOpenBytes/t",
-            from: "0.2.0"
-        ),
-         .package(
             url: "https://github.com/0xLeif/swift-custom-dump",
             from: "0.4.1"
          )
@@ -39,7 +35,6 @@ let package = Package(
             name: "CacheStore",
             dependencies: [
                 "c",
-                "t",
                 .product(name: "CustomDump", package: "swift-custom-dump")
             ]
         ),
