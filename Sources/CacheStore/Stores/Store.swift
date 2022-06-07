@@ -222,7 +222,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
 
 // MARK: - Void Dependency
 
-public extension Store {
+public extension Store where Dependency == Void {
     /// Creates a `ScopedStore`
     func scope<ScopedKey: Hashable, ScopedAction>(
         keyTransformation: c.BiDirectionalTransformation<Key?, ScopedKey?>,
