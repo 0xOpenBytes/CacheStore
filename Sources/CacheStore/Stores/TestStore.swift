@@ -1,13 +1,14 @@
 #if DEBUG
 import CustomDump
 import Foundation
+import XCTestDynamicOverlay
 
 /// Facade typealias for XCTFail without importing XCTest
 public typealias FailureHandler = (_ message: String, _ file: StaticString, _ line: UInt) -> Void
 
 /// Static object to provide the `FailureHandler` to any `TestStore`
 public enum TestStoreFailure {
-    public static var handler: FailureHandler!
+    public static var handler: FailureHandler = XCTestDynamicOverlay.XCTFail
 }
 
 /// Testable `Store` where you can send and receive actions while expecting the changes
@@ -42,18 +43,6 @@ public class TestStore<Key: Hashable, Action, Dependency> {
         file: StaticString = #filePath,
         line: UInt = #line
     ) {
-        assert(
-            TestStoreFailure.handler != nil,
-            """
-            Set `TestStoreFailure.handler`
-                
-                override func setUp() {
-                    TestStoreFailure.handler = XCTFail
-                }
-            
-            """
-        )
-        
         store = Store(initialValues: initialValues, actionHandler: actionHandler, dependency: dependency).debug
         effects = []
         initFile = file
