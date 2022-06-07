@@ -147,10 +147,6 @@ import XCTest
 @testable import CacheStoreDemo
 
 class CacheStoreDemoTests: XCTestCase {
-    override func setUp() {
-        TestStoreFailure.handler = XCTFail
-    }
-    
     func testExample_success() throws {
         let store = TestStore(
             initialValues: [
