@@ -34,7 +34,7 @@ public class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
         lock = NSLock()
         cache = initialValues
     }
-
+    
     /// Get the `Value` for the `Key` if it exists
     public func get<Value>(_ key: Key, as: Value.Type = Value.self) -> Value? {
         defer { lock.unlock() }
@@ -78,13 +78,13 @@ public class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
         cache[key] = value
         lock.unlock()
     }
-
+    
     /// Require a set of keys otherwise throw an error
     @discardableResult
     public func require(keys: Set<Key>) throws -> Self {
         let missingKeys = keys
             .filter { contains($0) == false }
-
+        
         guard missingKeys.isEmpty else {
             throw MissingRequiredKeysError(keys: missingKeys)
         }
@@ -115,7 +115,7 @@ public class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
         
         return cache.compactMapValues { $0 as? Value }
     }
-
+    
     /// Update the value of a key by mutating the value passed into the `updater` parameter
     public func update<Value>(
         _ key: Key,
@@ -234,16 +234,42 @@ extension CacheStore {
             return false
         }
         
-        if
-            let storeValueDictionary: [AnyHashable: Any] = storeValue as? [AnyHashable: Any],
-            let updateValueDictionary: [AnyHashable: Any] = updatedValue as? [AnyHashable: Any]
-        {
-            let sortedStoreDictionary = storeValueDictionary.sorted(by: { "\($0.key)" == "\($1.key)" })
-            let sortedUpdatedStoreDictionary = updateValueDictionary.sorted(by: { "\($0.key)" == "\($1.key)" })
-            
-            return diff(sortedStoreDictionary, sortedUpdatedStoreDictionary) == nil
+        if let isCollectionEqual = isCollection(storeValue: storeValue, equalToUpdatedValue: updatedValue) {
+            return isCollectionEqual
         }
         
         return "\(updatedValue)" == "\(storeValue)"
+    }
+    
+    func isCollection<Value>(storeValue: Value, equalToUpdatedValue updatedValue: Value) -> Bool? {
+        if
+            let storeValueCollection = storeValue as? [Any],
+            let updateValueCollection = updatedValue as? [Any]
+        {
+            let sortedStoreCollection = storeValueCollection.sorted(by: { "\($0)" < "\($1)" })
+            let sortedUpdatedStoreCollection = updateValueCollection.sorted(by: { "\($0)" < "\($1)" })
+            
+            return diff(sortedStoreCollection, sortedUpdatedStoreCollection) == nil
+        }
+        else if
+            let storeValueCollection = storeValue as? [AnyHashable: Any],
+            let updateValueCollection = updatedValue as? [AnyHashable: Any]
+        {
+            let sortedStoreCollection = storeValueCollection.sorted(by: { "\($0.key)" < "\($1.key)" })
+            let sortedUpdatedStoreCollection = updateValueCollection.sorted(by: { "\($0.key)" < "\($1.key)" })
+            
+            return diff(sortedStoreCollection, sortedUpdatedStoreCollection) == nil
+        }
+        else if
+            let storeValueCollection = storeValue as? Set<AnyHashable>,
+            let updateValueCollection = updatedValue as? Set<AnyHashable>
+        {
+            let sortedStoreCollection = storeValueCollection.sorted(by: { "\($0)" < "\($1)" })
+            let sortedUpdatedStoreCollection = updateValueCollection.sorted(by: { "\($0)" < "\($1)" })
+            
+            return diff(sortedStoreCollection, sortedUpdatedStoreCollection) == nil
+        }
+        
+        return nil
     }
 }
