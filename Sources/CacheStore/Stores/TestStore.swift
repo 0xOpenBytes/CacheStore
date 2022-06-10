@@ -67,7 +67,7 @@ public class TestStore<Key: Hashable, Action, Dependency> {
             return
         }
         
-        guard expectedCacheStore.isCacheEqual(to: store.cacheStore) else {
+        guard diff(expectedCacheStore, store.cacheStore) else {
             TestStoreFailure.handler(
                 """
                 ❌ Expectation failed
