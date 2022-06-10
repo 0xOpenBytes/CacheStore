@@ -1,5 +1,6 @@
 import c
 import Combine
+import CustomDump
 import SwiftUI
 
 // MARK: -
@@ -231,6 +232,16 @@ extension CacheStore {
     func isValueEqual<Value>(toUpdatedValue updatedValue: Value, forKey key: Key) -> Bool {
         guard let storeValue: Value = get(key) else {
             return false
+        }
+        
+        if
+            let storeValueDictionary: [AnyHashable: Any] = storeValue as? [AnyHashable: Any],
+            let updateValueDictionary: [AnyHashable: Any] = updatedValue as? [AnyHashable: Any]
+        {
+            let sortedStoreDictionary = storeValueDictionary.sorted(by: { "\($0.key)" == "\($1.key)" })
+            let sortedUpdatedStoreDictionary = updateValueDictionary.sorted(by: { "\($0.key)" == "\($1.key)" })
+            
+            return diff(sortedStoreDictionary, sortedUpdatedStoreDictionary) == nil
         }
         
         return "\(updatedValue)" == "\(storeValue)"

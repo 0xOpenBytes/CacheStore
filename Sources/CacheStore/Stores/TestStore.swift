@@ -67,7 +67,10 @@ public class TestStore<Key: Hashable, Action, Dependency> {
             return
         }
         
-        guard expectedCacheStore.isCacheEqual(to: store.cacheStore) else {
+        let sortedExpectedCacheStore = expectedCacheStore.cache.sorted(by: { "\($0.key)" < "\($1.key)" })
+        let sortedCacheStore = store.cacheStore.cache.sorted(by: { "\($0.key)" < "\($1.key)" })
+        
+        guard diff(sortedExpectedCacheStore, sortedCacheStore) == nil else {
             TestStoreFailure.handler(
                 """
                 ❌ Expectation failed
@@ -128,7 +131,7 @@ public class TestStore<Key: Hashable, Action, Dependency> {
             return
         }
         
-        guard "\(action)" == "\(nextAction)" else {
+        guard diff(action, nextAction) == nil else {
             TestStoreFailure.handler("❌ Action (\(customDump(action))) does not equal NextAction (\(customDump(nextAction)))", file, line)
             return
         }

@@ -294,9 +294,10 @@ extension Store {
             )
         }
         
-        let areCacheEqual = cacheStore.isCacheEqual(to: cacheStoreCopy)
+        let sortedExpectedCacheStore = cacheStore.cache.sorted(by: { "\($0.key)" < "\($1.key)" })
+        let sortedCacheStore = cacheStoreCopy.cache.sorted(by: { "\($0.key)" < "\($1.key)" })
         
-        if areCacheEqual {
+        if diff(sortedExpectedCacheStore, sortedCacheStore) == nil {
             if isDebugging {
                 print("\t🙅 No State Change")
             }
