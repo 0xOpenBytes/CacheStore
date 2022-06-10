@@ -1,5 +1,6 @@
 import c
 import Combine
+import CustomDump
 import SwiftUI
 
 // MARK: -
@@ -237,10 +238,10 @@ extension CacheStore {
             let storeValueDictionary: [AnyHashable: Any] = storeValue as? [AnyHashable: Any],
             let updateValueDictionary: [AnyHashable: Any] = updatedValue as? [AnyHashable: Any]
         {
-            let sortedStoreDictionary: String = "\(storeValueDictionary.sorted(by: { "\($0.key)" == "\($1.key)" }))"
-            let sortedUpdatedStoreDictionary: String = "\(updateValueDictionary.sorted(by: { "\($0.key)" == "\($1.key)" }))"
+            let sortedStoreDictionary = storeValueDictionary.sorted(by: { "\($0.key)" == "\($1.key)" })
+            let sortedUpdatedStoreDictionary = updateValueDictionary.sorted(by: { "\($0.key)" == "\($1.key)" })
             
-            return sortedStoreDictionary == sortedUpdatedStoreDictionary
+            return diff(sortedStoreDictionary, sortedUpdatedStoreDictionary) == nil
         }
         
         return "\(updatedValue)" == "\(storeValue)"
