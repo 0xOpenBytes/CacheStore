@@ -4,10 +4,6 @@ import XCTest
 @testable import CacheStore
 
 class StoreTests: XCTestCase {
-    override func setUp() {
-        TestStoreFailure.handler = XCTFail
-    }
-    
     func testExample() {
         struct SomeStruct {
             var value: String
@@ -91,5 +87,77 @@ class StoreTests: XCTestCase {
         store.send(.removeValue, expecting: { $0.remove(.someStruct) })
         
         print("TEST COMPLETE")
+    }
+    
+    func testCollections() {
+        enum StoreKey {
+            case array
+            case dictionary
+            case set
+            case tuple
+            case triple
+        }
+        
+        enum StoreAction {
+            case setArray([Any])
+            case setDictionary([AnyHashable: Any])
+            case setSet(Set<AnyHashable>)
+            case setTuple((Any, Any))
+            case setTriple((Any, Any, Any))
+        }
+        
+        let storeActionHandler = StoreActionHandler<StoreKey, StoreAction, Void> { cacheStore, action, _ in
+            switch action {
+            case let .setArray(array): cacheStore.set(value: array, forKey: .array)
+            case let .setDictionary(dictionary): cacheStore.set(value: dictionary, forKey: .dictionary)
+            case let .setSet(set): cacheStore.set(value: set, forKey: .set)
+            case let .setTuple(tuple): cacheStore.set(value: tuple, forKey: .tuple)
+            case let .setTriple(triple): cacheStore.set(value: triple, forKey: .triple)
+            }
+            
+            return .none
+        }
+        
+        let store = TestStore(
+            initialValues: [:],
+            actionHandler: storeActionHandler,
+            dependency: ()
+        )
+        
+        for _ in 0 ... 99 {
+            let randomExpectedArray: [Any] = [Int.random(in: -100 ... 100), "Hello, World!", Double.random(in: 0 ... 1)]
+            store.send(.setArray(randomExpectedArray)) { cacheStore in
+                cacheStore.set(value: randomExpectedArray.shuffled(), forKey: .array)
+            }
+            
+            let randomExpectedDictionary: [AnyHashable: Any] = [
+                "Hello, World!": 27,
+                Double.pi: "Hello, World!",
+                false: true
+            ]
+            let shuffledExpectedDictionary: [AnyHashable: Any] = [
+                false: true,
+                "Hello, World!": 27,
+                Double.pi: "Hello, World!",
+            ]
+            store.send(.setDictionary(randomExpectedDictionary)) { cacheStore in
+                cacheStore.set(value: shuffledExpectedDictionary, forKey: .dictionary)
+            }
+            
+            let randomExpectedSet: Set<AnyHashable> = [Int.random(in: -100 ... 100), "Hello, World!", Double.random(in: 0 ... 1)]
+            store.send(.setSet(randomExpectedSet)) { cacheStore in
+                cacheStore.set(value: randomExpectedSet, forKey: .set)
+            }
+            
+            let randomExpectedTuple: (Any, Any) = (Bool.random(), Int.random(in: -100 ... 100))
+            store.send(.setTuple(randomExpectedTuple)) { cacheStore in
+                cacheStore.set(value: randomExpectedTuple, forKey: .tuple)
+            }
+            
+            let randomExpectedTriple: (Any, Any, Any) = (Double.random(in: 0 ... 1), Int.random(in: -100 ... 100), Bool.random())
+            store.send(.setTriple(randomExpectedTriple)) { cacheStore in
+                cacheStore.set(value: randomExpectedTriple, forKey: .triple)
+            }
+        }
     }
 }
