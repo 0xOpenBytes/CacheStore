@@ -67,7 +67,10 @@ public class TestStore<Key: Hashable, Action, Dependency> {
             return
         }
         
-        guard diff(expectedCacheStore.cache, store.cacheStore.cache) == nil else {
+        let sortedExpectedCacheStoreCache = expectedCacheStore.cache.sorted(by: { "\($0.key)" < "\($1.key)" })
+        let sortedCacheStoreCache = store.cacheStore.cache.sorted(by: { "\($0.key)" < "\($1.key)" })
+        
+        guard diff(sortedExpectedCacheStoreCache, sortedCacheStoreCache) == nil else {
             TestStoreFailure.handler(
                 """
                 ❌ Expectation failed
