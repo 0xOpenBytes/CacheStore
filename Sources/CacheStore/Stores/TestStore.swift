@@ -67,7 +67,7 @@ public class TestStore<Key: Hashable, Action, Dependency> {
             return
         }
         
-        guard diff(expectedCacheStore, store.cacheStore) else {
+        guard diff(expectedCacheStore, store.cacheStore) == nil else {
             TestStoreFailure.handler(
                 """
                 ❌ Expectation failed
