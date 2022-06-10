@@ -294,9 +294,7 @@ extension Store {
             )
         }
         
-        let areCacheEqual = cacheStore.isCacheEqual(to: cacheStoreCopy)
-        
-        if areCacheEqual {
+        if diff(cacheStore.cache, cacheStoreCopy.cache) == nil {
             if isDebugging {
                 print("\t🙅 No State Change")
             }

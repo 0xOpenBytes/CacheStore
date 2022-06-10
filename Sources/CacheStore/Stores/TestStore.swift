@@ -67,7 +67,7 @@ public class TestStore<Key: Hashable, Action, Dependency> {
             return
         }
         
-        guard expectedCacheStore.isCacheEqual(to: store.cacheStore) else {
+        guard diff(expectedCacheStore.cache, store.cacheStore.cache) == nil else {
             TestStoreFailure.handler(
                 """
                 ❌ Expectation failed
@@ -128,7 +128,7 @@ public class TestStore<Key: Hashable, Action, Dependency> {
             return
         }
         
-        guard "\(action)" == "\(nextAction)" else {
+        guard diff(action, nextAction) == nil else {
             TestStoreFailure.handler("❌ Action (\(customDump(action))) does not equal NextAction (\(customDump(nextAction)))", file, line)
             return
         }
