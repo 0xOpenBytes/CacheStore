@@ -4,7 +4,7 @@
 
 ## What is `CacheStore`?
 
-`CacheStore` is a SwiftUI tate management framework that uses a dictionary as the state. Scoping creates a single source of truth for the parent state. `CacheStore` uses [`c`](https://github.com/0xOpenBytes/c), which a simple composition framework. [`c`](https://github.com/0xOpenBytes/c) has the ability to create transformations that are either unidirectional or bidirectional.
+`CacheStore` is a SwiftUI state management framework that uses a dictionary as the state. Scoping creates a single source of truth for the parent state. `CacheStore` uses [`c`](https://github.com/0xOpenBytes/c), which a simple composition framework. [`c`](https://github.com/0xOpenBytes/c) has the ability to create transformations that are either unidirectional or bidirectional.
 
 ### CacheStore Basic Idea
 
