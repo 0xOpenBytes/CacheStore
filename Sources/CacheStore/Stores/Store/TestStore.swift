@@ -136,6 +136,13 @@ public class TestStore<Key: Hashable, Action, Dependency> {
         send(nextAction, file: file, line: line, expecting: expecting)
     }
     
+    /// Create a StoreContent for the provided content type
+    func content<Content: StoreContent>(
+        using contentType: Content.Type = Content.self
+    ) -> Content where Content.Key == Key {
+        store.content(using: contentType)
+    }
+    
     /// Checks to make sure the cache has the required keys, otherwise it will fail
     func require(
         keys: Set<Key>,
