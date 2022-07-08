@@ -1,5 +1,3 @@
-import c
-
 public protocol StoreContent {
     associatedtype Key: Hashable
     
