@@ -137,7 +137,7 @@ public class TestStore<Key: Hashable, Action, Dependency> {
     }
     
     /// Create a StoreContent for the provided content type
-    func content<Content: StoreContent>(
+    public func content<Content: StoreContent>(
         using contentType: Content.Type = Content.self
     ) -> Content where Content.Key == Key {
         store.content(using: contentType)
