@@ -146,7 +146,7 @@ public class TestStore<Key: Hashable, Action, Dependency> {
         do {
             try expecting(content(using: contentType))
         } catch {
-            TestStoreFailure.handler("❌ Expectation failed", file, line)
+            TestStoreFailure.handler("❌ Expectation failed: \(error)", file, line)
             return
         }
     }
