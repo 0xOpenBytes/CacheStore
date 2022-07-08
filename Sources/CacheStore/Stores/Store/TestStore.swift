@@ -136,6 +136,21 @@ public class TestStore<Key: Hashable, Action, Dependency> {
         send(nextAction, file: file, line: line, expecting: expecting)
     }
     
+    /// Create a StoreContent for the provided content type and make assertions in the expecting closure about the content
+    public func content<Content: StoreContent>(
+        using contentType: Content.Type = Content.self,
+        expecting: @escaping (Content) throws -> Void,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) where Content.Key == Key {
+        do {
+            try expecting(content(using: contentType))
+        } catch {
+            TestStoreFailure.handler("❌ Expectation failed", file, line)
+            return
+        }
+    }
+    
     /// Create a StoreContent for the provided content type
     public func content<Content: StoreContent>(
         using contentType: Content.Type = Content.self
