@@ -139,7 +139,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
     
     /// Creates a `ScopedStore`
     public func scope<ScopedKey: Hashable, ScopedAction, ScopedDependency>(
-        keyTransformation: c.BiDirectionalTransformation<Key?, ScopedKey?>,
+        keyTransformation: BiDirectionalTransformation<Key?, ScopedKey?>,
         actionHandler: StoreActionHandler<ScopedKey, ScopedAction, ScopedDependency>,
         dependencyTransformation: (Dependency) -> ScopedDependency,
         defaultCache: [ScopedKey: Any] = [:],
@@ -182,7 +182,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
     
     /// Creates an Actionless `ScopedStore`
     public func actionlessScope<ScopedKey: Hashable, ScopedDependency>(
-        keyTransformation: c.BiDirectionalTransformation<Key?, ScopedKey?>,
+        keyTransformation: BiDirectionalTransformation<Key?, ScopedKey?>,
         dependencyTransformation: (Dependency) -> ScopedDependency,
         defaultCache: [ScopedKey: Any] = [:]
     ) -> Store<ScopedKey, Void, ScopedDependency> {
@@ -225,7 +225,7 @@ public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionH
 public extension Store where Dependency == Void {
     /// Creates a `ScopedStore`
     func scope<ScopedKey: Hashable, ScopedAction>(
-        keyTransformation: c.BiDirectionalTransformation<Key?, ScopedKey?>,
+        keyTransformation: BiDirectionalTransformation<Key?, ScopedKey?>,
         actionHandler: StoreActionHandler<ScopedKey, ScopedAction, Void>,
         defaultCache: [ScopedKey: Any] = [:],
         actionTransformation: @escaping (ScopedAction?) -> Action? = { _ in nil }
@@ -241,7 +241,7 @@ public extension Store where Dependency == Void {
     
     /// Creates a `ScopedStore`
     func actionlessScope<ScopedKey: Hashable>(
-        keyTransformation: c.BiDirectionalTransformation<Key?, ScopedKey?>,
+        keyTransformation: BiDirectionalTransformation<Key?, ScopedKey?>,
         defaultCache: [ScopedKey: Any] = [:]
     ) -> Store<ScopedKey, Void, Void> {
         actionlessScope(
