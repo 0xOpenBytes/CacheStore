@@ -141,7 +141,7 @@ final class CacheStoreTests: XCTestCase {
         }
         
         let scopedCacheStore: CacheStore<ScopedCacheKey> = store.scope(
-            keyTransformation: c.transformer(
+            keyTransformation: (
                 from: { global in
                     switch global {
                     case .b: return .b
@@ -190,7 +190,7 @@ final class CacheStoreTests: XCTestCase {
                     let storeOldScopeValue: String = scopedCacheStore.resolve(.b)
                     
                     let newlyScopedCacheStore: CacheStore<ScopedCacheKey> = store.scope(
-                        keyTransformation: c.transformer(
+                        keyTransformation: (
                             from: { global in
                                 switch global {
                                 case .b: return .b

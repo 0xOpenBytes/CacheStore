@@ -7,7 +7,7 @@ public extension Store {
     ) -> Content where Content.Key == Key {
         contentType.init(
             store: actionlessScope(
-                keyTransformation: c.transformer(from: { $0 }, to: { $0 }),
+                keyTransformation: (from: { $0 }, to: { $0 }),
                 dependencyTransformation: { _ in () }
             )
         )

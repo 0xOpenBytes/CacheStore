@@ -1,11 +1,13 @@
 import c
 
+public typealias BiDirectionalTransformation = c.BiDirectionalTransformation
+
 class ScopedCacheStore<Key: Hashable, ScopedKey: Hashable>: CacheStore<ScopedKey> {
     weak var parentCacheStore: CacheStore<Key>?
-    private var keyTransformation: c.BiDirectionalTransformation<Key?, ScopedKey?>
+    private var keyTransformation: BiDirectionalTransformation<Key?, ScopedKey?>
     
     init(
-        keyTransformation: c.BiDirectionalTransformation<Key?, ScopedKey?>
+        keyTransformation: BiDirectionalTransformation<Key?, ScopedKey?>
     ) {
         self.keyTransformation = keyTransformation
         
