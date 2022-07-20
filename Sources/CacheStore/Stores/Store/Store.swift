@@ -6,7 +6,7 @@ import SwiftUI
 // MARK: -
 
 /// An `ObservableObject` that uses actions to modify the state which is a `CacheStore`
-public class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHandling {
+open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHandling {
     private var lock: NSLock
     private var isDebugging: Bool
     private var effects: [AnyHashable: Task<(), Never>]

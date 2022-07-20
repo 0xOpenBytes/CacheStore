@@ -12,7 +12,7 @@ public enum TestStoreFailure {
 }
 
 /// Testable `Store` where you can send and receive actions while expecting the changes
-public class TestStore<Key: Hashable, Action, Dependency> {
+open class TestStore<Key: Hashable, Action, Dependency> {
     private let initFile: StaticString
     private let initLine: UInt
     private var nextAction: Action?
