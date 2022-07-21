@@ -274,12 +274,13 @@ extension Store {
         let actionEffect = actionHandler.handle(store: &cacheStoreCopy, action: action, dependency: dependency)
         
         if let actionEffect = actionEffect {
-            if let runningEffect = effects[actionEffect.id] {
-                runningEffect.cancel()
-            }
-            
+            cancel(id: actionEffect.id)
             effects[actionEffect.id] = Task {
+                if Task.isCancelled { return }
+                
                 guard let nextAction = await actionEffect.effect() else { return }
+                
+                if Task.isCancelled { return }
                 
                 handle(action: nextAction)
             }
