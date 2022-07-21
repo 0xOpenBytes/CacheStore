@@ -12,7 +12,7 @@ public enum TestStoreFailure {
 }
 
 /// Testable `Store` where you can send and receive actions while expecting the changes
-public class TestStore<Key: Hashable, Action, Dependency> {
+open class TestStore<Key: Hashable, Action, Dependency> {
     private let initFile: StaticString
     private let initLine: UInt
     private var nextAction: Action?
@@ -28,14 +28,18 @@ public class TestStore<Key: Hashable, Action, Dependency> {
     }
     
     /// init for `TestStore<Key, Action, Dependency>`
-    ///
-    /// **Make sure to set `TestStoreFailure.handler`**
-    ///
-    /// ```
-    /// override func setUp() {
-    ///     TestStoreFailure.handler = XCTFail
-    /// }
-    /// ```
+    public init(
+        store: Store<Key, Action, Dependency>,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        self.store = store.debug
+        effects = []
+        initFile = file
+        initLine = line
+    }
+    
+    /// init for `TestStore<Key, Action, Dependency>`
     public required init(
         initialValues: [Key: Any],
         actionHandler: StoreActionHandler<Key, Action, Dependency>,

@@ -6,7 +6,7 @@ import SwiftUI
 // MARK: -
 
 /// An `ObservableObject` that has a `cache` which is the source of truth for this object
-public class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
+open class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
     /// `Error` that reports the missing keys for the `CacheStore`
     public struct MissingRequiredKeysError<Key: Hashable>: LocalizedError {
         /// Required keys
