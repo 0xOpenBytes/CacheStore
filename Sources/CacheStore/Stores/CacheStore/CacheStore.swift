@@ -218,8 +218,23 @@ extension CacheStore {
         
         guard cacheStoreCount == updatedStore.cache.count else { return false }
         
-        return updatedStore.cache.map { key, value in
-            isValueEqual(toUpdatedValue: value, forKey: key)
+        return updatedStore.cache.map { key, value -> Bool in
+            let mirror = Mirror(reflecting: value)
+            
+            if mirror.displayStyle != .optional {
+                return isValueEqual(toUpdatedValue: value, forKey: key)
+            }
+            
+            if mirror.children.isEmpty {
+                return (try? require(key)) == nil
+            }
+            
+            guard
+                let (_, unwrappedValue) = mirror.children.first
+            else { return (try? require(key)) == nil }
+            
+            return isValueEqual(toUpdatedValue: unwrappedValue, forKey: key)
+            
         }
         .reduce(into: true) { result, condition in
             guard condition else {
