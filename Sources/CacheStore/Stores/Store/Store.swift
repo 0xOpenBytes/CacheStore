@@ -61,7 +61,11 @@ open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHan
         cacheStore = CacheStore(initialValues: initialValues)
         self.actionHandler = actionHandler
         self.dependency = dependency
-        cacheStoreObserver = $cacheStore.sink { [weak self] _ in self?.objectWillChange.send() }
+        cacheStoreObserver = $cacheStore.sink { [weak self] _ in
+            DispatchQueue.main.async {
+                self?.objectWillChange.send()
+            }
+        }
     }
     
     /// Get the value in the `cache` using the `key`. This returns an optional value. If the value is `nil`, that means either the value doesn't exist or the value is not able to be casted as `Value`.
