@@ -49,6 +49,11 @@ open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHan
         return "(Store: \(storeDescription), CacheStore: \(cacheStoreAddress))"
     }
     
+    deinit {
+        cacheStoreObserver?.cancel()
+        effects.forEach { cancel(id: $0.key) }
+    }
+    
     /// init for `Store<Key, Action, Dependency>`
     public required init(
         initialValues: [Key: Any],
