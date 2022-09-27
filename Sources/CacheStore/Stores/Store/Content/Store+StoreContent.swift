@@ -1,5 +1,3 @@
-import c
-
 public extension Store {
     /// Create a StoreContent for the provided content type
     func content<Content: StoreContent>(
