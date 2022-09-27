@@ -1,5 +1,4 @@
 import t
-import c
 import XCTest
 @testable import CacheStore
 
