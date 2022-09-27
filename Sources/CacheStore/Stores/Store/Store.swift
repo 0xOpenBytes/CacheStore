@@ -11,7 +11,7 @@ open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHan
     private var cacheStoreObserver: AnyCancellable?
     private var effects: [AnyHashable: Task<(), Never>]
     
-    @Published var cacheStore: CacheStore<Key>
+    var cacheStore: CacheStore<Key>
     var actionHandler: StoreActionHandler<Key, Action, Dependency>
     let dependency: Dependency
     
@@ -61,7 +61,7 @@ open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHan
         cacheStore = CacheStore(initialValues: initialValues)
         self.actionHandler = actionHandler
         self.dependency = dependency
-        cacheStoreObserver = $cacheStore.sink { [weak self] _ in
+        cacheStoreObserver = publisher.sink { [weak self] _ in
             DispatchQueue.main.async {
                 self?.objectWillChange.send()
             }
