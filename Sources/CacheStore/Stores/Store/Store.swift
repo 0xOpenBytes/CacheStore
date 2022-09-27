@@ -1,4 +1,3 @@
-import c
 import Combine
 import CustomDump
 import SwiftUI
@@ -9,9 +8,10 @@ import SwiftUI
 open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHandling {
     private var lock: NSLock
     private var isDebugging: Bool
+    private var cacheStoreObserver: AnyCancellable?
     private var effects: [AnyHashable: Task<(), Never>]
     
-    var cacheStore: CacheStore<Key>
+    @Published var cacheStore: CacheStore<Key>
     var actionHandler: StoreActionHandler<Key, Action, Dependency>
     let dependency: Dependency
     
@@ -61,6 +61,7 @@ open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHan
         cacheStore = CacheStore(initialValues: initialValues)
         self.actionHandler = actionHandler
         self.dependency = dependency
+        cacheStoreObserver = $cacheStore.sink { [weak self] _ in self?.objectWillChange.send() }
     }
     
     /// Get the value in the `cache` using the `key`. This returns an optional value. If the value is `nil`, that means either the value doesn't exist or the value is not able to be casted as `Value`.
@@ -293,14 +294,10 @@ extension Store {
                 --------------- State Output ------------
                 """
             )
-        }
-        
-        if cacheStore.isCacheEqual(to: cacheStoreCopy) {
-            if isDebugging {
+            
+            if cacheStore.isCacheEqual(to: cacheStoreCopy) {
                 print("\t🙅 No State Change")
-            }
-        } else {
-            if isDebugging {
+            } else {
                 if let diff = diff(cacheStore.cache, cacheStoreCopy.cache) {
                     print(
                         """
@@ -324,11 +321,6 @@ extension Store {
                 }
             }
             
-            objectWillChange.send()
-            cacheStore.cache = cacheStoreCopy.cache
-        }
-        
-        if isDebugging {
             print(
                 """
                 --------------- State End ---------------
@@ -336,6 +328,8 @@ extension Store {
                 """
             )
         }
+        
+        cacheStore.cache = cacheStoreCopy.cache
         
         return actionEffect
     }
