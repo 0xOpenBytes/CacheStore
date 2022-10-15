@@ -21,7 +21,6 @@ class StoreLogger: SwiftUILogger {
     ) {
         SwiftUILogger.app.log(level: level, message: message, error: error, file, line)
         super.log(level: level, message: message, error: error, file, line)
-        print(message)
     }
 }
 
@@ -300,7 +299,8 @@ extension Store {
     
     func send(_ action: Action) -> ActionEffect<Action>? {
         if isDebugging {
-            logger.info(message: "[\(formattedDate)] 🟡 New Action: \(customDump(action)) \(debugIdentifier)")
+            logger.info(message: "New Action: \(customDump(action)) \(debugIdentifier)")
+            print("[\(formattedDate)] 🟡 New Action: \(customDump(action)) \(debugIdentifier)")
         }
         
         var cacheStoreCopy = cacheStore.copy()
@@ -322,28 +322,49 @@ extension Store {
         
         if isDebugging {
             logger.success(
-                message:  """
+                message:  "Handled Action: \(customDump(action)) \(debugIdentifier)"
+            )
+            print(
+                """
                 [\(formattedDate)] 📣 Handled Action: \(customDump(action)) \(debugIdentifier)
                 --------------- State Output ------------
                 """
             )
-            
             if cacheStore.isCacheEqual(to: cacheStoreCopy) {
                 logger.log(
                     level: .info,
-                    message: "\t🙅 No State Change"
+                    message: "No State Change"
                 )
+                print("\t🙅 No State Change")
             } else {
                 if let diff = diff(cacheStore.cache, cacheStoreCopy.cache) {
                     logger.warning(
-                        message: """
+                        message: "State Changed"
+                    )
+                    logger.info(message: diff)
+                    print(
+                        """
                         \t⚠️ State Changed
                         \(diff)
                         """
                     )
                 } else {
                     logger.warning(
+                        message: "State Changed"
+                    )
+                    logger.info(
                         message: """
+                        --- Was ---
+                        \(debuggingStateDelta(forUpdatedStore: cacheStore))
+                        -----------
+                        ***********
+                        --- Now ---
+                        \(debuggingStateDelta(forUpdatedStore: cacheStoreCopy))
+                        -----------
+                        """
+                    )
+                    print(
+                        """
                         \t⚠️ State Changed
                         \t\t--- Was ---
                         \t\t\(debuggingStateDelta(forUpdatedStore: cacheStore))
@@ -358,7 +379,10 @@ extension Store {
             }
             
             logger.success(
-                message: """
+                message: "End Action: \(customDump(action)) \(debugIdentifier)"
+            )
+            print(
+                """
                 --------------- State End ---------------
                 [\(formattedDate)] 🏁 End Action: \(customDump(action)) \(debugIdentifier)
                 """
