@@ -1,6 +1,29 @@
 import Combine
 import CustomDump
 import SwiftUI
+import SwiftUILogger
+
+private enum Logger {
+    static let app = SwiftUILogger(name: "App")
+}
+
+public extension SwiftUILogger {
+    static var app: SwiftUILogger { Logger.app }
+}
+
+class StoreLogger: SwiftUILogger {
+    override func log(
+        level: SwiftUILogger.Level,
+        message: String,
+        error: Error? = nil,
+        _ file: StaticString = #fileID,
+        _ line: Int = #line
+    ) {
+        SwiftUILogger.app.log(level: level, message: message, error: error, file, line)
+        super.log(level: level, message: message, error: error, file, line)
+        print(message)
+    }
+}
 
 // MARK: -
 
@@ -10,6 +33,7 @@ open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHan
     private var isDebugging: Bool
     private var cacheStoreObserver: AnyCancellable?
     private var effects: [AnyHashable: Task<(), Never>]
+    private lazy var logger: StoreLogger = StoreLogger(name: Unmanaged.passUnretained(self).toOpaque().debugDescription)
     
     var cacheStore: CacheStore<Key>
     var actionHandler: StoreActionHandler<Key, Action, Dependency>
@@ -276,7 +300,7 @@ extension Store {
     
     func send(_ action: Action) -> ActionEffect<Action>? {
         if isDebugging {
-            print("[\(formattedDate)] 🟡 New Action: \(customDump(action)) \(debugIdentifier)")
+            logger.info(message: "[\(formattedDate)] 🟡 New Action: \(customDump(action)) \(debugIdentifier)")
         }
         
         var cacheStoreCopy = cacheStore.copy()
@@ -297,26 +321,29 @@ extension Store {
         }
         
         if isDebugging {
-            print(
-                """
+            logger.success(
+                message:  """
                 [\(formattedDate)] 📣 Handled Action: \(customDump(action)) \(debugIdentifier)
                 --------------- State Output ------------
                 """
             )
             
             if cacheStore.isCacheEqual(to: cacheStoreCopy) {
-                print("\t🙅 No State Change")
+                logger.log(
+                    level: .info,
+                    message: "\t🙅 No State Change"
+                )
             } else {
                 if let diff = diff(cacheStore.cache, cacheStoreCopy.cache) {
-                    print(
-                        """
+                    logger.warning(
+                        message: """
                         \t⚠️ State Changed
                         \(diff)
                         """
                     )
                 } else {
-                    print(
-                        """
+                    logger.warning(
+                        message: """
                         \t⚠️ State Changed
                         \t\t--- Was ---
                         \t\t\(debuggingStateDelta(forUpdatedStore: cacheStore))
@@ -330,8 +357,8 @@ extension Store {
                 }
             }
             
-            print(
-                """
+            logger.success(
+                message: """
                 --------------- State End ---------------
                 [\(formattedDate)] 🏁 End Action: \(customDump(action)) \(debugIdentifier)
                 """
