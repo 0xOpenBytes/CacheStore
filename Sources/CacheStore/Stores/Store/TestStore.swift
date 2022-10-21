@@ -76,11 +76,11 @@ open class TestStore<Key: Hashable, Action, Dependency> {
                 """
                 ❌ Expectation failed
                 --- Expected ---
-                \(customDump(expectedCacheStore.valuesInCache))
+                \(customDump(expectedCacheStore.allValues))
                 ----------------
                 ****************
                 ---- Actual ----
-                \(customDump(store.cacheStore.valuesInCache))
+                \(customDump(store.cacheStore.allValues))
                 ----------------
                 """,
                 file,

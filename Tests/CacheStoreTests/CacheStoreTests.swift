@@ -163,8 +163,8 @@ final class CacheStoreTests: XCTestCase {
             t.suite(named: "Scope Tests") {
                 try t.expect("that store's b and scopedStore's b are the same and should update together.") {
                     
-                    let storeValue: String = store.resolve(.b)
-                    let scopeValue: String = scopedCacheStore.resolve(.b)
+                    let storeValue: String = try store.resolve(.b)
+                    let scopeValue: String = try scopedCacheStore.resolve(.b)
                     
                     try t.assert(storeValue, isEqualTo: scopeValue)
                     try t.assert(storeValue, isEqualTo: "Blue")
@@ -174,8 +174,8 @@ final class CacheStoreTests: XCTestCase {
                     
                     scopedCacheStore.set(value: "Purple", forKey: .b)
                 
-                    let scopedCacheUpdatedStoreValue: String = store.resolve(.b)
-                    let scopedCacheUpdatedScopeValue: String = scopedCacheStore.resolve(.b)
+                    let scopedCacheUpdatedStoreValue: String = try store.resolve(.b)
+                    let scopedCacheUpdatedScopeValue: String = try scopedCacheStore.resolve(.b)
                     
                     try t.assert(scopedCacheUpdatedStoreValue, isEqualTo: scopedCacheUpdatedScopeValue)
                     try t.assert(scopedCacheUpdatedStoreValue, isEqualTo: "Purple")
@@ -185,8 +185,8 @@ final class CacheStoreTests: XCTestCase {
 
                     store.set(value: "Yellow", forKey: .b)
 
-                    let storeUpdatedStoreValue: String = store.resolve(.b)
-                    let storeOldScopeValue: String = scopedCacheStore.resolve(.b)
+                    let storeUpdatedStoreValue: String = try store.resolve(.b)
+                    let storeOldScopeValue: String = try scopedCacheStore.resolve(.b)
                     
                     let newlyScopedCacheStore: CacheStore<ScopedCacheKey> = store.scope(
                         keyTransformation: (
@@ -207,7 +207,7 @@ final class CacheStoreTests: XCTestCase {
                             .c: "Green"
                         ]
                     )
-                    let storeNewScopeValue: String = newlyScopedCacheStore.resolve(.b)
+                    let storeNewScopeValue: String = try newlyScopedCacheStore.resolve(.b)
                     
                     try t.assert(storeUpdatedStoreValue, isNotEqualTo: storeOldScopeValue)
                     try t.assert(storeUpdatedStoreValue, isEqualTo: storeNewScopeValue)

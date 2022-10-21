@@ -16,11 +16,11 @@ open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHan
     let dependency: Dependency
     
     /// The values in the `cache` of type `Any`
-    public var valuesInCache: [Key: Any] {
+    public var allValues: [Key: Any] {
         lock.lock()
         defer { lock.unlock() }
         
-        return cacheStore.valuesInCache
+        return cacheStore.allValues
     }
     
     /// A publisher for the private `cache` that is mapped to a CacheStore
@@ -82,11 +82,11 @@ open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHan
     }
     
     /// Resolve the value in the `cache` using the `key`. This function uses `get` and force casts the value. This should only be used when you know the value is always in the `cache`.
-    public func resolve<Value>(_ key: Key, as: Value.Type = Value.self) -> Value {
+    public func resolve<Value>(_ key: Key, as: Value.Type = Value.self) throws -> Value {
         lock.lock()
         defer { lock.unlock() }
         
-        return cacheStore.resolve(key)
+        return try cacheStore.resolve(key)
     }
     
     /// Checks to make sure the cache has the required keys, otherwise it will throw an error
@@ -125,6 +125,9 @@ open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHan
     
     /// Cancel an effect with the ID
     public func cancel(id: AnyHashable) {
+        lock.lock()
+        defer { lock.unlock() }
+
         effects[id]?.cancel()
         effects[id] = nil
     }
@@ -209,10 +212,11 @@ open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHan
     public func binding<Value>(
         _ key: Key,
         as: Value.Type = Value.self,
-        using: @escaping (Value) -> Action
+        using: @escaping (Value) -> Action,
+        fallback: Value
     ) -> Binding<Value> {
         Binding(
-            get: { self.resolve(key) },
+            get: { self.get(key) ?? fallback },
             set: { self.handle(action: using($0)) }
         )
     }
@@ -359,7 +363,7 @@ extension Store {
         
         var updatedStateChanges: [String] = []
         
-        for (key, value) in updatedStore.valuesInCache {
+        for (key, value) in updatedStore.allValues {
             let isValueEqual: Bool = cacheStore.isValueEqual(toUpdatedValue: value, forKey: key)
             let valueInfo: String = "\(type(of: value))"
             let valueOutput: String

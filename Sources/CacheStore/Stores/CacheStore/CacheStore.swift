@@ -25,10 +25,7 @@ open class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
     
     private var lock: NSLock
     @Published var cache: [Key: Any]
-    
-    /// The values in the `cache` of type `Any`
-    public var valuesInCache: [Key: Any] { cache }
-    
+
     /// init for `CacheStore<Key>`
     required public init(initialValues: [Key: Any]) {
         lock = NSLock()
@@ -63,7 +60,13 @@ open class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
     }
     
     /// Resolve the `Value` for the `Key` by force casting `get`
-    public func resolve<Value>(_ key: Key, as: Value.Type = Value.self) -> Value { get(key)! }
+    public func resolve<Value>(_ key: Key, as: Value.Type = Value.self) throws -> Value {
+        guard let value: Value = get(key) else {
+            throw MissingRequiredKeysError(keys: [key])
+        }
+
+        return value
+    }
     
     /// Set the `Value` for the `Key`
     public func set<Value>(value: Value, forKey key: Key) {
@@ -190,10 +193,11 @@ public extension CacheStore {
     /// Creates a `Binding` for the given `Key`
     func binding<Value>(
         _ key: Key,
-        as: Value.Type = Value.self
+        as: Value.Type = Value.self,
+        fallback: Value
     ) -> Binding<Value> {
         Binding(
-            get: { self.resolve(key) },
+            get: { self.get(key) ?? fallback },
             set: { self.set(value: $0, forKey: key) }
         )
     }
