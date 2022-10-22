@@ -289,7 +289,7 @@ extension Store {
         
         if let actionEffect = actionEffect {
             cancel(id: actionEffect.id)
-            effects[actionEffect.id] = Task { [weak self] in
+            let effectTask = Task { [weak self] in
                 defer { self?.cancel(id: actionEffect.id) }
 
                 if Task.isCancelled { return }
@@ -300,6 +300,9 @@ extension Store {
 
                 self?.handle(action: nextAction)
             }
+            lock.lock()
+            effects[actionEffect.id] = effectTask
+            lock.unlock()
         }
         
         if isDebugging {
