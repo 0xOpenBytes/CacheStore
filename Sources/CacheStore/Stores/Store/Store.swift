@@ -66,11 +66,11 @@ open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHan
         cacheStore = CacheStore(initialValues: initialValues)
         self.actionHandler = actionHandler
         self.dependency = dependency
-        cacheStoreObserver = publisher.sink { [weak self] _ in
-            DispatchQueue.main.async {
+        cacheStoreObserver = publisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
                 self?.objectWillChange.send()
             }
-        }
     }
     
     /// Get the value in the `cache` using the `key`. This returns an optional value. If the value is `nil`, that means either the value doesn't exist or the value is not able to be casted as `Value`.
@@ -127,7 +127,7 @@ open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHan
     public func cancel(id: AnyHashable) {
         lock.lock()
         defer { lock.unlock() }
-
+        
         effects[id]?.cancel()
         effects[id] = nil
     }
@@ -289,14 +289,16 @@ extension Store {
         
         if let actionEffect = actionEffect {
             cancel(id: actionEffect.id)
-            effects[actionEffect.id] = Task {
+            effects[actionEffect.id] = Task { [weak self] in
+                defer { self?.cancel(id: actionEffect.id) }
+                
                 if Task.isCancelled { return }
                 
                 guard let nextAction = await actionEffect.effect() else { return }
                 
                 if Task.isCancelled { return }
                 
-                handle(action: nextAction)
+                self?.handle(action: nextAction)
             }
         }
         
@@ -344,7 +346,7 @@ extension Store {
         
         cacheStore.cache = cacheStoreCopy.cache
         
-        return actionEffect
+        return .none // actionEffect
     }
     
     private var formattedDate: String {

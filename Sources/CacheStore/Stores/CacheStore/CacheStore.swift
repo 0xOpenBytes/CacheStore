@@ -22,6 +22,29 @@ open class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
             "Missing Required Keys: \(keys.map { "\($0)" }.joined(separator: ", "))"
         }
     }
+
+    /// `Error` that reports the expected type for a value in the `CacheStore`
+    public struct InvalidTypeError<ExpectedType>: LocalizedError {
+        /// Expected type
+        public let expectedType: ExpectedType.Type
+
+        // Actual Value
+        public let actualValue: Any?
+
+        /// init for `InvalidTypeError<Key>`
+        public init(
+            expectedType: ExpectedType.Type,
+            actualValue: Any?
+        ) {
+            self.expectedType = expectedType
+            self.actualValue = actualValue
+        }
+
+        /// Error description for `LocalizedError`
+        public var errorDescription: String? {
+            "Invalid Type: (Expected: \(expectedType.self)) got \(type(of: actualValue))"
+        }
+    }
     
     private var lock: NSLock
     @Published var cache: [Key: Any]
@@ -61,8 +84,12 @@ open class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
     
     /// Resolve the `Value` for the `Key` by force casting `get`
     public func resolve<Value>(_ key: Key, as: Value.Type = Value.self) throws -> Value {
-        guard let value: Value = get(key) else {
+        guard contains(key) else {
             throw MissingRequiredKeysError(keys: [key])
+        }
+
+        guard let value: Value = get(key) else {
+            throw InvalidTypeError(expectedType: Value.self, actualValue: get(key))
         }
 
         return value
