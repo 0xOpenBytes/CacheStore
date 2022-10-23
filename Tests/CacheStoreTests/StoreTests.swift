@@ -67,6 +67,7 @@ class StoreTests: XCTestCase {
             actionHandler: actionHandler,
             dependency: ()
         )
+            .debug
 
         store.require(.isOn)
 

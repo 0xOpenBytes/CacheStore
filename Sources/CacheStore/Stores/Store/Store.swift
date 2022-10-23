@@ -10,10 +10,9 @@ open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHan
     private var isDebugging: Bool
     private var cacheStoreObserver: AnyCancellable?
     private var effects: [AnyHashable: Task<(), Never>]
-    
-    var cacheStore: CacheStore<Key>
-    var actionHandler: StoreActionHandler<Key, Action, Dependency>
-    let dependency: Dependency
+    private(set) var cacheStore: CacheStore<Key>
+    private(set) var actionHandler: StoreActionHandler<Key, Action, Dependency>
+    private let dependency: Dependency
     
     /// The values in the `cache` of type `Any`
     public var allValues: [Key: Any] {
@@ -32,7 +31,7 @@ open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHan
     }
     
     /// An identifier of the Store and CacheStore
-    var debugIdentifier: String {
+    public var debugIdentifier: String {
         lock.lock()
         defer { lock.unlock() }
         
@@ -237,6 +236,18 @@ open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHan
 // MARK: - Void Dependency
 
 public extension Store where Dependency == Void {
+    /// init for `Store<Key, Action, Void>`
+    convenience init(
+        initialValues: [Key: Any],
+        actionHandler: StoreActionHandler<Key, Action, Dependency>
+    ) {
+        self.init(
+            initialValues: initialValues,
+            actionHandler: actionHandler,
+            dependency: ()
+        )
+    }
+
     /// Creates a `ScopedStore`
     func scope<ScopedKey: Hashable, ScopedAction>(
         keyTransformation: BiDirectionalTransformation<Key?, ScopedKey?>,

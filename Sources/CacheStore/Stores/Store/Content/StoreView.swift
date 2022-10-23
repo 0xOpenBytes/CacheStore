@@ -10,15 +10,22 @@ public protocol StoreView: View {
     associatedtype Dependency
     /// The content the View cares about and uses
     associatedtype Content: StoreContent
-    
+    /// The View created from the current Content
+    associatedtype ContentView: View
+
     /// An `ObservableObject` that uses actions to modify the state which is a `CacheStore`
     var store: Store<Key, Action, Dependency> { get set }
-    /// The content a StoreView uses when creating SwiftUI views
-    var content: Content { get }
-    
+
     init(store: Store<Key, Action, Dependency>)
+
+    /// Create the body view with the current Content of the Store. View's body property is defaulted to using this function.
+    /// -   Parameters:
+    ///     - content: The content a StoreView uses when creating SwiftUI views
+    func body(content: Content) -> ContentView
 }
 
 public extension StoreView where Content.Key == Key {
-    var content: Content { store.content() }
+    var body: some View {
+        body(content: store.content())
+    }
 }
