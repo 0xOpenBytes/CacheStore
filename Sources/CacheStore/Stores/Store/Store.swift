@@ -67,7 +67,7 @@ open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHan
         self.actionHandler = actionHandler
         self.dependency = dependency
         cacheStoreObserver = cacheStore.$cache
-//            .receive(on: DispatchQueue.main)
+            .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
                 self?.objectWillChange.send()
             }
