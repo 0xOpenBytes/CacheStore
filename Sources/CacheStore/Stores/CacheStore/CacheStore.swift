@@ -8,43 +8,10 @@ import SwiftUI
 /// An `ObservableObject` that has a `cache` which is the source of truth for this object
 open class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
     /// `Error` that reports the missing keys for the `CacheStore`
-    public struct MissingRequiredKeysError<Key: Hashable>: LocalizedError {
-        /// Required keys
-        public let keys: Set<Key>
-        
-        /// init for `MissingRequiredKeysError<Key>`
-        public init(keys: Set<Key>) {
-            self.keys = keys
-        }
-        
-        /// Error description for `LocalizedError`
-        public var errorDescription: String? {
-            "Missing Required Keys: \(keys.map { "\($0)" }.joined(separator: ", "))"
-        }
-    }
+    public typealias MissingRequiredKeysError = c.MissingRequiredKeysError
 
     /// `Error` that reports the expected type for a value in the `CacheStore`
-    public struct InvalidTypeError<ExpectedType>: LocalizedError {
-        /// Expected type
-        public let expectedType: ExpectedType.Type
-
-        // Actual Value
-        public let actualValue: Any?
-
-        /// init for `InvalidTypeError<Key>`
-        public init(
-            expectedType: ExpectedType.Type,
-            actualValue: Any?
-        ) {
-            self.expectedType = expectedType
-            self.actualValue = actualValue
-        }
-
-        /// Error description for `LocalizedError`
-        public var errorDescription: String? {
-            "Invalid Type: (Expected: \(expectedType.self)) got \(type(of: actualValue))"
-        }
-    }
+    public typealias InvalidTypeError = c.InvalidTypeError
     
     private var lock: NSLock
     @Published var cache: [Key: Any]
