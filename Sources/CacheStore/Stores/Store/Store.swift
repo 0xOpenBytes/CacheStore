@@ -346,10 +346,10 @@ extension Store {
                 """
             )
         }
-        
+
         cacheStore.cache = cacheStoreCopy.cache
         
-        return .none // actionEffect
+        return actionEffect
     }
     
     private var formattedDate: String {

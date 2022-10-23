@@ -11,7 +11,7 @@ open class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
     public typealias MissingRequiredKeysError = c.MissingRequiredKeysError
 
     /// `Error` that reports the expected type for a value in the `CacheStore`
-    public typealias InvalidTypeError = c.InvalidTypeError
+//    public typealias InvalidTypeError = c.InvalidTypeError
     
     private var lock: NSLock
     @Published var cache: [Key: Any]
@@ -56,7 +56,8 @@ open class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
         }
 
         guard let value: Value = get(key) else {
-            throw InvalidTypeError(expectedType: Value.self, actualValue: get(key))
+            throw MissingRequiredKeysError(keys: [key])
+//            throw InvalidTypeError(expectedType: Value.self, actualValue: get(key))
         }
 
         return value

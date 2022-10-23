@@ -37,7 +37,7 @@ class StoreTests: XCTestCase {
                 print("TOGGLE HERE: \(Date())")
 
                 return ActionEffect(id: "toggle->nothing") {
-                    sleep(3)
+                    sleep(1)
                     return .nothing
                 }
 
@@ -72,7 +72,11 @@ class StoreTests: XCTestCase {
 
         store.send(.toggle, expecting: { $0.set(value: true, forKey: .isOn) })
 
+        store.receive(.nothing, expecting: { _ in })
+
         store.send(.toggle, expecting: { $0.set(value: false, forKey: .isOn) })
+
+        store.receive(.nothing, expecting: { _ in })
 
         store.send(.updateStruct, expecting: {
             $0.update(.someStruct, as: SomeStruct.self, updater: { $0?.otherValue = "something" })
