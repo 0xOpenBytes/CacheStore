@@ -33,7 +33,7 @@ open class TestStore<Key: Hashable, Action, Dependency> {
         file: StaticString = #filePath,
         line: UInt = #line
     ) {
-        self.store = store//.debug
+        self.store = store.debug
         effects = []
         initFile = file
         initLine = line
@@ -47,7 +47,7 @@ open class TestStore<Key: Hashable, Action, Dependency> {
         file: StaticString = #filePath,
         line: UInt = #line
     ) {
-        store = Store(initialValues: initialValues, actionHandler: actionHandler, dependency: dependency)//.debug
+        store = Store(initialValues: initialValues, actionHandler: actionHandler, dependency: dependency).debug
         effects = []
         initFile = file
         initLine = line

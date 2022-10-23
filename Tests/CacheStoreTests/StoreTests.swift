@@ -71,10 +71,8 @@ class StoreTests: XCTestCase {
         store.require(.isOn)
 
         store.send(.toggle, expecting: { $0.set(value: true, forKey: .isOn) })
-        store.receive(.nothing, expecting: { _ in })
 
         store.send(.toggle, expecting: { $0.set(value: false, forKey: .isOn) })
-        store.receive(.nothing, expecting: { _ in })
 
         store.send(.updateStruct, expecting: {
             $0.update(.someStruct, as: SomeStruct.self, updater: { $0?.otherValue = "something" })
@@ -188,7 +186,7 @@ class StoreTests: XCTestCase {
 
         store.require(.count)
 
-        for _ in 0 ..< 1_000_000 {
+        for _ in 0 ..< 1_000 {
             store.send(
                 .inc,
                 expecting: {
@@ -230,7 +228,7 @@ class StoreTests: XCTestCase {
             dependency: ()
         )
 
-        for _ in 0 ..< 1_000_000 {
+        for _ in 0 ..< 1_000 {
             store.handle(action: .inc)
         }
     }
