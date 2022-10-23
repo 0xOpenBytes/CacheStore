@@ -36,8 +36,8 @@ class StoreTests: XCTestCase {
 
                 print("TOGGLE HERE: \(Date())")
 
-                return ActionEffect(id: "toggle->nothing") {
-                    sleep(1)
+                return ActionEffect {
+                    try? await Task.sleep(nanoseconds: 1_000)
                     return .nothing
                 }
 

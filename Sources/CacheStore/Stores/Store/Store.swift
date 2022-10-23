@@ -210,9 +210,8 @@ open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHan
     /// Creates a `Binding` for the given `Key` using an `Action` to set the value
     public func binding<Value>(
         _ key: Key,
-        as: Value.Type = Value.self,
-        using: @escaping (Value) -> Action,
-        fallback: Value
+        fallback: Value,
+        using: @escaping (Value) -> Action
     ) -> Binding<Value> {
         Binding(
             get: { self.get(key) ?? fallback },
