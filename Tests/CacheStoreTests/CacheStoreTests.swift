@@ -219,17 +219,4 @@ final class CacheStoreTests: XCTestCase {
             }
         )
     }
-
-    func testX() throws {
-        enum Key {
-            case count
-        }
-
-        let cacheStore = CacheStore<Key>(initialValues: [.count: 0])
-
-        for _ in 0 ..< 1_000 {
-            cacheStore.update(.count, as: Int.self, updater: { $0? += 1 })
-            XCTAssertNotNil(cacheStore.get(.count, as: Int.self))
-        }
-    }
 }
