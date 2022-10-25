@@ -107,7 +107,7 @@ let actionHandler = StoreActionHandler<StoreKey, Action, Dependency> { cacheStor
 struct ContentView: View {
     @ObservedObject var store: Store<StoreKey, Action, Dependency> = .init(
         initialValues: [
-            .url: URL(string: "https://jsonplaceholder.typicode.com/posts") as Any
+            .url: URL(string: "https://jsonplaceholder.typicode.com/posts")!
         ],
         actionHandler: actionHandler,
         dependency: .live
