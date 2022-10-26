@@ -10,17 +10,16 @@ open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHan
     private var isDebugging: Bool
     private var cacheStoreObserver: AnyCancellable?
     private var effects: [AnyHashable: Task<(), Never>]
-    
-    var cacheStore: CacheStore<Key>
-    var actionHandler: StoreActionHandler<Key, Action, Dependency>
-    let dependency: Dependency
+    private(set) var cacheStore: CacheStore<Key>
+    private(set) var actionHandler: StoreActionHandler<Key, Action, Dependency>
+    private let dependency: Dependency
     
     /// The values in the `cache` of type `Any`
-    public var valuesInCache: [Key: Any] {
+    public var allValues: [Key: Any] {
         lock.lock()
         defer { lock.unlock() }
         
-        return cacheStore.valuesInCache
+        return cacheStore.allValues
     }
     
     /// A publisher for the private `cache` that is mapped to a CacheStore
@@ -32,7 +31,7 @@ open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHan
     }
     
     /// An identifier of the Store and CacheStore
-    var debugIdentifier: String {
+    public var debugIdentifier: String {
         lock.lock()
         defer { lock.unlock() }
         
@@ -66,11 +65,11 @@ open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHan
         cacheStore = CacheStore(initialValues: initialValues)
         self.actionHandler = actionHandler
         self.dependency = dependency
-        cacheStoreObserver = publisher.sink { [weak self] _ in
-            DispatchQueue.main.async {
+        cacheStoreObserver = cacheStore.$cache
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
                 self?.objectWillChange.send()
             }
-        }
     }
     
     /// Get the value in the `cache` using the `key`. This returns an optional value. If the value is `nil`, that means either the value doesn't exist or the value is not able to be casted as `Value`.
@@ -82,11 +81,11 @@ open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHan
     }
     
     /// Resolve the value in the `cache` using the `key`. This function uses `get` and force casts the value. This should only be used when you know the value is always in the `cache`.
-    public func resolve<Value>(_ key: Key, as: Value.Type = Value.self) -> Value {
+    public func resolve<Value>(_ key: Key, as: Value.Type = Value.self) throws -> Value {
         lock.lock()
         defer { lock.unlock() }
         
-        return cacheStore.resolve(key)
+        return try cacheStore.resolve(key)
     }
     
     /// Checks to make sure the cache has the required keys, otherwise it will throw an error
@@ -125,6 +124,9 @@ open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHan
     
     /// Cancel an effect with the ID
     public func cancel(id: AnyHashable) {
+        lock.lock()
+        defer { lock.unlock() }
+
         effects[id]?.cancel()
         effects[id] = nil
     }
@@ -171,11 +173,11 @@ open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHan
         
         scopedStore.cacheStore = scopedCacheStore
         scopedStore.parentStore = self
-        scopedStore.actionHandler = StoreActionHandler { (store: inout CacheStore<ScopedKey>, action: ScopedAction, dependency: ScopedDependency) in
+        scopedStore.actionHandler = StoreActionHandler { [weak scopedStore] (store: inout CacheStore<ScopedKey>, action: ScopedAction, dependency: ScopedDependency) in
             let effect = actionHandler.handle(store: &store, action: action, dependency: dependency)
             
             if let parentAction = actionTransformation(action) {
-                scopedStore.parentStore?.handle(action: parentAction)
+                scopedStore?.parentStore?.handle(action: parentAction)
             }
             
             return effect
@@ -208,11 +210,11 @@ open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHan
     /// Creates a `Binding` for the given `Key` using an `Action` to set the value
     public func binding<Value>(
         _ key: Key,
-        as: Value.Type = Value.self,
+        fallback: Value,
         using: @escaping (Value) -> Action
     ) -> Binding<Value> {
         Binding(
-            get: { self.resolve(key) },
+            get: { self.get(key) ?? fallback },
             set: { self.handle(action: using($0)) }
         )
     }
@@ -233,6 +235,18 @@ open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHan
 // MARK: - Void Dependency
 
 public extension Store where Dependency == Void {
+    /// init for `Store<Key, Action, Void>`
+    convenience init(
+        initialValues: [Key: Any],
+        actionHandler: StoreActionHandler<Key, Action, Dependency>
+    ) {
+        self.init(
+            initialValues: initialValues,
+            actionHandler: actionHandler,
+            dependency: ()
+        )
+    }
+
     /// Creates a `ScopedStore`
     func scope<ScopedKey: Hashable, ScopedAction>(
         keyTransformation: BiDirectionalTransformation<Key?, ScopedKey?>,
@@ -285,15 +299,20 @@ extension Store {
         
         if let actionEffect = actionEffect {
             cancel(id: actionEffect.id)
-            effects[actionEffect.id] = Task {
+            let effectTask = Task { [weak self] in
+                defer { self?.cancel(id: actionEffect.id) }
+
                 if Task.isCancelled { return }
-                
+
                 guard let nextAction = await actionEffect.effect() else { return }
-                
+
                 if Task.isCancelled { return }
-                
-                handle(action: nextAction)
+
+                self?.handle(action: nextAction)
             }
+            lock.lock()
+            effects[actionEffect.id] = effectTask
+            lock.unlock()
         }
         
         if isDebugging {
@@ -303,7 +322,7 @@ extension Store {
                 --------------- State Output ------------
                 """
             )
-            
+
             if cacheStore.isCacheEqual(to: cacheStoreCopy) {
                 print("\t🙅 No State Change")
             } else {
@@ -329,7 +348,7 @@ extension Store {
                     )
                 }
             }
-            
+
             print(
                 """
                 --------------- State End ---------------
@@ -337,7 +356,7 @@ extension Store {
                 """
             )
         }
-        
+
         cacheStore.cache = cacheStoreCopy.cache
         
         return actionEffect
@@ -359,7 +378,7 @@ extension Store {
         
         var updatedStateChanges: [String] = []
         
-        for (key, value) in updatedStore.valuesInCache {
+        for (key, value) in updatedStore.allValues {
             let isValueEqual: Bool = cacheStore.isValueEqual(toUpdatedValue: value, forKey: key)
             let valueInfo: String = "\(type(of: value))"
             let valueOutput: String

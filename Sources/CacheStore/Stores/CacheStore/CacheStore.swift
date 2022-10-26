@@ -8,27 +8,14 @@ import SwiftUI
 /// An `ObservableObject` that has a `cache` which is the source of truth for this object
 open class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
     /// `Error` that reports the missing keys for the `CacheStore`
-    public struct MissingRequiredKeysError<Key: Hashable>: LocalizedError {
-        /// Required keys
-        public let keys: Set<Key>
-        
-        /// init for `MissingRequiredKeysError<Key>`
-        public init(keys: Set<Key>) {
-            self.keys = keys
-        }
-        
-        /// Error description for `LocalizedError`
-        public var errorDescription: String? {
-            "Missing Required Keys: \(keys.map { "\($0)" }.joined(separator: ", "))"
-        }
-    }
+    public typealias MissingRequiredKeysError = c.MissingRequiredKeysError
+
+    /// `Error` that reports the expected type for a value in the `CacheStore`
+    public typealias InvalidTypeError = c.InvalidTypeError
     
     private var lock: NSLock
     @Published var cache: [Key: Any]
-    
-    /// The values in the `cache` of type `Any`
-    public var valuesInCache: [Key: Any] { cache }
-    
+
     /// init for `CacheStore<Key>`
     required public init(initialValues: [Key: Any]) {
         lock = NSLock()
@@ -63,7 +50,17 @@ open class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
     }
     
     /// Resolve the `Value` for the `Key` by force casting `get`
-    public func resolve<Value>(_ key: Key, as: Value.Type = Value.self) -> Value { get(key)! }
+    public func resolve<Value>(_ key: Key, as: Value.Type = Value.self) throws -> Value {
+        guard contains(key) else {
+            throw MissingRequiredKeysError(keys: [key])
+        }
+
+        guard let value: Value = get(key) else {
+            throw InvalidTypeError(expectedType: Value.self, actualValue: get(key))
+        }
+
+        return value
+    }
     
     /// Set the `Value` for the `Key`
     public func set<Value>(value: Value, forKey key: Key) {
@@ -190,10 +187,11 @@ public extension CacheStore {
     /// Creates a `Binding` for the given `Key`
     func binding<Value>(
         _ key: Key,
-        as: Value.Type = Value.self
+        as: Value.Type = Value.self,
+        fallback: Value
     ) -> Binding<Value> {
         Binding(
-            get: { self.resolve(key) },
+            get: { self.get(key) ?? fallback },
             set: { self.set(value: $0, forKey: key) }
         )
     }

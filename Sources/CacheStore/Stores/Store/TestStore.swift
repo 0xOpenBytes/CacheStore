@@ -33,7 +33,7 @@ open class TestStore<Key: Hashable, Action, Dependency> {
         file: StaticString = #filePath,
         line: UInt = #line
     ) {
-        self.store = store.debug
+        self.store = store
         effects = []
         initFile = file
         initLine = line
@@ -47,10 +47,17 @@ open class TestStore<Key: Hashable, Action, Dependency> {
         file: StaticString = #filePath,
         line: UInt = #line
     ) {
-        store = Store(initialValues: initialValues, actionHandler: actionHandler, dependency: dependency).debug
+        store = Store(initialValues: initialValues, actionHandler: actionHandler, dependency: dependency)
         effects = []
         initFile = file
         initLine = line
+    }
+
+    /// Modifies and returns the `TestStore` with debugging mode on
+    public var debug: Self {
+        _ = store.debug
+
+        return self
     }
     
     /// Send an action and provide an expectation for the changes from handling the action
@@ -61,7 +68,7 @@ open class TestStore<Key: Hashable, Action, Dependency> {
         expecting: (inout CacheStore<Key>) throws -> Void
     ) {
         var expectedCacheStore = store.cacheStore.copy()
-        
+
         let actionEffect = store.send(action)
         
         do {
@@ -70,17 +77,17 @@ open class TestStore<Key: Hashable, Action, Dependency> {
             TestStoreFailure.handler("❌ Expectation failed", file, line)
             return
         }
-        
+
         guard expectedCacheStore.isCacheEqual(to: store.cacheStore) else {
             TestStoreFailure.handler(
                 """
                 ❌ Expectation failed
                 --- Expected ---
-                \(customDump(expectedCacheStore.valuesInCache))
+                \(customDump(expectedCacheStore.allValues))
                 ----------------
                 ****************
                 ---- Actual ----
-                \(customDump(store.cacheStore.valuesInCache))
+                \(customDump(store.cacheStore.allValues))
                 ----------------
                 """,
                 file,
@@ -88,14 +95,13 @@ open class TestStore<Key: Hashable, Action, Dependency> {
             )
             return
         }
-        
-        
+
         if let actionEffect = actionEffect {
             let predicate: (ActionEffect<Action>) -> Bool = { $0.id == actionEffect.id }
             if effects.contains(where: predicate) {
                 effects.removeAll(where: predicate)
             }
-            
+
             effects.append(actionEffect)
         }
     }

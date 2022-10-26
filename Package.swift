@@ -21,7 +21,7 @@ let package = Package(
         // Dependencies declare other packages that this package depends on.
          .package(
             url: "https://github.com/0xOpenBytes/c",
-            from: "1.1.1"
+            from: "3.0.0"
         ),
          .package(
             url: "https://github.com/0xLeif/swift-custom-dump",
