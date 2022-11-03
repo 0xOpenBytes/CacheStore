@@ -228,7 +228,7 @@ open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHan
 
             return effect
         }
-        
+
         cacheCopy.forEach { key, value in
             guard
                 let transformation = keyValueTransformation.from((key, get(key, as: Value.self)))
@@ -472,10 +472,10 @@ extension Store {
 
 extension Store {
     @ViewBuilder
-    public func forEach<Value: Hashable, ScopedValue, ScopedKey: Hashable, ScopedAction, ScopedDependency>(
+    public func forEach<Value: Hashable, ScopedKey: Hashable, ScopedAction, ScopedDependency>(
         _ key: Key,
         as type: Value.Type = Value.self,
-        keyValueTransformation: BiDirectionalTransformation<(Key, [Value]?)?, (ScopedKey, ScopedValue?)?>,
+        toScopedKey scopedKey: ScopedKey,
         actionHandler: StoreActionHandler<ScopedKey, ScopedAction, ScopedDependency>,
         dependencyTransformation: @escaping (Dependency) -> ScopedDependency,
         defaultCache: [ScopedKey: Any] = [:],
@@ -484,10 +484,25 @@ extension Store {
         content: @escaping (Store<ScopedKey, ScopedAction, ScopedDependency>) -> some View
     ) -> some View {
         if let data: [Value] = get(key) {
-            ForEach(data, id: \.self) { datum in
+            ForEach(0 ..< data.count, id: \.self) { datumIndex in
+                let value = data[datumIndex]
+
                 content(
                     self.scope(
-                        keyValueTransformation: keyValueTransformation,
+                        keyValueTransformation: (
+                            from: { (keyValue: (Key, [Value]?)?) in
+                                (scopedKey, value)
+                            },
+                            to: { (scopedKeyValue: (ScopedKey, Value?)?) in
+                                var mutatedData = data
+
+                                if let value = scopedKeyValue?.1 {
+                                    mutatedData[datumIndex] = value
+                                }
+
+                                return (key, mutatedData)
+                            }
+                        ),
                         actionHandler: actionHandler,
                         dependencyTransformation: dependencyTransformation,
                         defaultCache: defaultCache,
@@ -497,6 +512,31 @@ extension Store {
             }
         } else {
             noContentView
+        }
+    }
+
+    @ViewBuilder
+    public func listEach<Value: Hashable, ScopedKey: Hashable, ScopedAction, ScopedDependency>(
+        _ key: Key,
+        as type: Value.Type = Value.self,
+        toScopedKey scopedKey: ScopedKey,
+        actionHandler: StoreActionHandler<ScopedKey, ScopedAction, ScopedDependency>,
+        dependencyTransformation: @escaping (Dependency) -> ScopedDependency,
+        defaultCache: [ScopedKey: Any] = [:],
+        actionTransformation: @escaping (ScopedAction?) -> Action? = { _ in nil },
+        noContentView: some View,
+        content: @escaping (Store<ScopedKey, ScopedAction, ScopedDependency>) -> some View
+    ) -> some View {
+        List {
+            forEach(
+                key,
+                as: type,
+                toScopedKey: scopedKey,
+                actionHandler: actionHandler,
+                dependencyTransformation: dependencyTransformation,
+                noContentView: noContentView,
+                content: content
+            )
         }
     }
 }
