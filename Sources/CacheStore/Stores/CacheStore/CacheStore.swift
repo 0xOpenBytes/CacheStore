@@ -195,14 +195,16 @@ public extension CacheStore {
         scopedCacheStore.parentCacheStore = self
 
         lock.lock()
-        cache.forEach { key, value in
+        let cacheCopy = cache
+        lock.unlock()
+
+        cacheCopy.forEach { key, value in
             guard
                 let transformation = keyValueTransformation.from((key, get(key, as: Value.self)))
             else { return }
 
             scopedCacheStore.cache[transformation.0] = transformation.1
         }
-        lock.unlock()
 
         return scopedCacheStore
     }
