@@ -25,7 +25,7 @@ let package = Package(
         ),
          .package(
             url: "https://github.com/0xLeif/swift-custom-dump",
-            from: "0.4.1"
+            from: "2022.11.1"
          )
     ],
     targets: [

@@ -191,6 +191,51 @@ open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHan
         
         return scopedStore
     }
+
+    /// Creates a `ScopedStore`
+    public func scope<Value, ScopedValue, ScopedKey: Hashable, ScopedAction, ScopedDependency>(
+        keyValueTransformation: BiDirectionalTransformation<(Key, Value?)?, (ScopedKey, ScopedValue?)?>,
+        actionHandler: StoreActionHandler<ScopedKey, ScopedAction, ScopedDependency>,
+        dependencyTransformation: (Dependency) -> ScopedDependency,
+        defaultCache: [ScopedKey: Any] = [:],
+        actionTransformation: @escaping (ScopedAction?) -> Action? = { _ in nil }
+    ) -> Store<ScopedKey, ScopedAction, ScopedDependency> {
+        let scopedStore = ScopedStore<Key, ScopedKey, Action, ScopedAction, Dependency, ScopedDependency> (
+            initialValues: [:],
+            actionHandler: StoreActionHandler<ScopedKey, ScopedAction, ScopedDependency>.none,
+            dependency: dependencyTransformation(dependency)
+        )
+
+        lock.lock()
+        defer { lock.unlock() }
+
+        let scopedCacheStore = cacheStore.scope(
+            keyValueTransformation: keyValueTransformation,
+            defaultCache: defaultCache
+        )
+
+        scopedStore.cacheStore = scopedCacheStore
+        scopedStore.parentStore = self
+        scopedStore.actionHandler = StoreActionHandler { [weak scopedStore] (store: inout CacheStore<ScopedKey>, action: ScopedAction, dependency: ScopedDependency) in
+            let effect = actionHandler.handle(store: &store, action: action, dependency: dependency)
+
+            if let parentAction = actionTransformation(action) {
+                scopedStore?.parentStore?.handle(action: parentAction)
+            }
+
+            return effect
+        }
+
+        cacheStore.cache.forEach { key, value in
+            guard
+                let transformation = keyValueTransformation.from((key, get(key, as: Value.self)))
+            else { return }
+
+            scopedStore.cacheStore.cache[transformation.0] = transformation.1
+        }
+
+        return scopedStore
+    }
     
     /// Creates an Actionless `ScopedStore`
     public func actionlessScope<ScopedKey: Hashable, ScopedDependency>(
@@ -227,6 +272,32 @@ open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHan
     ) -> Binding<Value?> {
         Binding(
             get: { self.get(key) },
+            set: { self.handle(action: using($0)) }
+        )
+    }
+
+    /// Creates a `Binding` for the given `Key` using an `Action` to set the value
+    public func binding<ParentValue, Value>(
+        _ key: Key,
+        as: ParentValue.Type = ParentValue.self,
+        transform: @escaping (ParentValue?) -> Value,
+        using: @escaping (Value) -> Action
+    ) -> Binding<Value> {
+        Binding(
+            get: { transform(self.get(key, as: ParentValue.self)) },
+            set: { self.handle(action: using($0)) }
+        )
+    }
+
+    /// Creates a `Binding` for the given `Key`, where the value is Optional, using an `Action` to set the value
+    public func optionalBinding<ParentValue, Value>(
+        _ key: Key,
+        as: Value.Type = Value.self,
+        transform: @escaping (ParentValue?) -> Value?,
+        using: @escaping (Value?) -> Action
+    ) -> Binding<Value?> {
+        Binding(
+            get: { transform(self.get(key, as: ParentValue.self)) },
             set: { self.handle(action: using($0)) }
         )
     }
@@ -393,5 +464,36 @@ extension Store {
         }
         
         return updatedStateChanges.joined(separator: "\n\t\t")
+    }
+}
+
+extension Store {
+    @ViewBuilder
+    public func forEach<Value: Hashable, ScopedValue, ScopedKey: Hashable, ScopedAction, ScopedDependency>(
+        _ key: Key,
+        as type: Value.Type = Value.self,
+        keyValueTransformation: BiDirectionalTransformation<(Key, Value?)?, (ScopedKey, ScopedValue?)?>,
+        actionHandler: StoreActionHandler<ScopedKey, ScopedAction, ScopedDependency>,
+        dependencyTransformation: @escaping (Dependency) -> ScopedDependency,
+        defaultCache: [ScopedKey: Any] = [:],
+        actionTransformation: @escaping (ScopedAction?) -> Action? = { _ in nil },
+        noContentView: some View,
+        content: @escaping (Store<ScopedKey, ScopedAction, ScopedDependency>) -> some View
+    ) -> some View {
+        if let data: [Value] = get(key) {
+            ForEach(data, id: \.self) { datum in
+                content(
+                    self.scope(
+                        keyValueTransformation: keyValueTransformation,
+                        actionHandler: actionHandler,
+                        dependencyTransformation: dependencyTransformation,
+                        defaultCache: defaultCache,
+                        actionTransformation: actionTransformation
+                    )
+                )
+            }
+        } else {
+            noContentView
+        }
     }
 }

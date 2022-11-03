@@ -168,7 +168,7 @@ public extension CacheStore {
         keyTransformation: BiDirectionalTransformation<Key?, ScopedKey?>,
         defaultCache: [ScopedKey: Any] = [:]
     ) -> CacheStore<ScopedKey> {
-        let scopedCacheStore = ScopedCacheStore(keyTransformation: keyTransformation)
+        let scopedCacheStore = ScopedKeyCacheStore(keyTransformation: keyTransformation)
         
         scopedCacheStore.cache = defaultCache
         scopedCacheStore.parentCacheStore = self
@@ -181,6 +181,29 @@ public extension CacheStore {
         }
         lock.unlock()
         
+        return scopedCacheStore
+    }
+
+    /// Creates a `ScopedCacheStore` with the given key value transformation and default cache
+    func scope<Value, ScopedValue, ScopedKey: Hashable>(
+        keyValueTransformation: BiDirectionalTransformation<(Key, Value?)?, (ScopedKey, ScopedValue?)?>,
+        defaultCache: [ScopedKey: Any] = [:]
+    ) -> CacheStore<ScopedKey> {
+        let scopedCacheStore = ScopedKeyValueCacheStore(keyValueTransformation: keyValueTransformation)
+
+        scopedCacheStore.cache = defaultCache
+        scopedCacheStore.parentCacheStore = self
+
+        lock.lock()
+        cache.forEach { key, value in
+            guard
+                let transformation = keyValueTransformation.from((key, get(key, as: Value.self)))
+            else { return }
+
+            scopedCacheStore.cache[transformation.0] = transformation.1
+        }
+        lock.unlock()
+
         return scopedCacheStore
     }
     
