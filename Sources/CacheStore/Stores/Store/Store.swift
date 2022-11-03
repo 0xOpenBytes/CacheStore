@@ -472,7 +472,7 @@ extension Store {
     public func forEach<Value: Hashable, ScopedValue, ScopedKey: Hashable, ScopedAction, ScopedDependency>(
         _ key: Key,
         as type: Value.Type = Value.self,
-        keyValueTransformation: BiDirectionalTransformation<(Key, Value?)?, (ScopedKey, ScopedValue?)?>,
+        keyValueTransformation: BiDirectionalTransformation<(Key, [Value]?)?, (ScopedKey, ScopedValue?)?>,
         actionHandler: StoreActionHandler<ScopedKey, ScopedAction, ScopedDependency>,
         dependencyTransformation: @escaping (Dependency) -> ScopedDependency,
         defaultCache: [ScopedKey: Any] = [:],
