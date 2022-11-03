@@ -207,12 +207,15 @@ open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHan
         )
 
         lock.lock()
-        defer { lock.unlock() }
 
         let scopedCacheStore = cacheStore.scope(
             keyValueTransformation: keyValueTransformation,
             defaultCache: defaultCache
         )
+
+        let cacheCopy = cacheStore.cache
+
+        lock.unlock()
 
         scopedStore.cacheStore = scopedCacheStore
         scopedStore.parentStore = self
@@ -225,8 +228,8 @@ open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHan
 
             return effect
         }
-
-        cacheStore.cache.forEach { key, value in
+        
+        cacheCopy.forEach { key, value in
             guard
                 let transformation = keyValueTransformation.from((key, get(key, as: Value.self)))
             else { return }
