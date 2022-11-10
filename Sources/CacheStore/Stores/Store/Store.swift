@@ -487,30 +487,33 @@ extension Store {
             let data: [Value] = get(key),
             data.isEmpty == false
         {
-            ForEach(0 ..< data.count, id: \.self) { datumIndex in
+            ForEach(0 ..< data.count, id: \.self) { [weak self] datumIndex in
                 let value = data[datumIndex]
-                let store = self.scope(
-                    keyValueTransformation: (
-                        from: { (keyValue: (Key, [Value]?)?) in
-                            (scopedKey, value)
-                        },
-                        to: { (scopedKeyValue: (ScopedKey, Value?)?) in
-                            var mutatedData = data
 
-                            if let value = scopedKeyValue?.1 {
-                                mutatedData[datumIndex] = value
+                if
+                    let store = self?.scope(
+                        keyValueTransformation: (
+                            from: { (keyValue: (Key, [Value]?)?) in
+                                (scopedKey, value)
+                            },
+                            to: { (scopedKeyValue: (ScopedKey, Value?)?) in
+                                var mutatedData = data
+
+                                if let value = scopedKeyValue?.1 {
+                                    mutatedData[datumIndex] = value
+                                }
+
+                                return (key, mutatedData)
                             }
-
-                            return (key, mutatedData)
-                        }
-                    ),
-                    actionHandler: actionHandler,
-                    dependencyTransformation: dependencyTransformation,
-                    defaultCache: defaultCache,
-                    actionTransformation: actionTransformation
-                )
-
-                content(store)
+                        ),
+                        actionHandler: actionHandler,
+                        dependencyTransformation: dependencyTransformation,
+                        defaultCache: defaultCache,
+                        actionTransformation: actionTransformation
+                    )
+                {
+                    content(store)
+                }
             }
         } else {
             noContentView
