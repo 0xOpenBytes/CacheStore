@@ -24,12 +24,12 @@ open class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
     
     /// Get the `Value` for the `Key` if it exists
     public func get<Value>(_ key: Key, as: Value.Type = Value.self) -> Value? {
-        defer { lock.unlock() }
         lock.lock()
+        defer { lock.unlock() }
         guard let value = cache[key] as? Value else {
             return nil
         }
-        
+
         let mirror = Mirror(reflecting: value)
         
         if mirror.displayStyle != .optional {
@@ -228,6 +228,30 @@ public extension CacheStore {
     ) -> Binding<Value?> {
         Binding(
             get: { self.get(key) },
+            set: { self.set(value: $0, forKey: key) }
+        )
+    }
+
+    /// Creates a `Binding` for the given `Key` using a transformantion
+    func binding<ParentValue, Value>(
+        _ key: Key,
+        as: ParentValue.Type = ParentValue.self,
+        transform: @escaping (ParentValue?) -> Value
+    ) -> Binding<Value> {
+        Binding(
+            get: { transform(self.get(key, as: ParentValue.self)) },
+            set: { self.set(value: $0, forKey: key) }
+        )
+    }
+
+    /// Creates a `Binding` for the given `Key`, where the value is Optional using a transformantion
+    func optionalBinding<ParentValue, Value>(
+        _ key: Key,
+        as: Value.Type = Value.self,
+        transform: @escaping (ParentValue?) -> Value?
+    ) -> Binding<Value?> {
+        Binding(
+            get: { transform(self.get(key, as: ParentValue.self)) },
             set: { self.set(value: $0, forKey: key) }
         )
     }

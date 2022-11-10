@@ -126,7 +126,7 @@ open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHan
     public func cancel(id: AnyHashable) {
         lock.lock()
         defer { lock.unlock() }
-        
+
         effects[id]?.cancel()
         effects[id] = nil
     }
@@ -191,7 +191,7 @@ open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHan
         
         return scopedStore
     }
-    
+
     /// Creates a `ScopedStore`
     public func scope<Value, ScopedValue, ScopedKey: Hashable, ScopedAction, ScopedDependency>(
         keyValueTransformation: BiDirectionalTransformation<(Key, Value?)?, (ScopedKey, ScopedValue?)?>,
@@ -205,38 +205,38 @@ open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHan
             actionHandler: StoreActionHandler<ScopedKey, ScopedAction, ScopedDependency>.none,
             dependency: dependencyTransformation(dependency)
         )
-        
+
         lock.lock()
-        
+
         let scopedCacheStore = cacheStore.scope(
             keyValueTransformation: keyValueTransformation,
             defaultCache: defaultCache
         )
-        
+
         let cacheCopy = cacheStore.cache
-        
+
         lock.unlock()
-        
+
         scopedStore.cacheStore = scopedCacheStore
         scopedStore.parentStore = self
         scopedStore.actionHandler = StoreActionHandler { [weak scopedStore] (store: inout CacheStore<ScopedKey>, action: ScopedAction, dependency: ScopedDependency) in
             let effect = actionHandler.handle(store: &store, action: action, dependency: dependency)
-            
+
             if let parentAction = actionTransformation(action) {
                 scopedStore?.parentStore?.handle(action: parentAction)
             }
-            
+
             return effect
         }
-        
+
         cacheCopy.forEach { key, value in
             guard
                 let transformation = keyValueTransformation.from((key, get(key, as: Value.self)))
             else { return }
-            
+
             scopedStore.cacheStore.cache[transformation.0] = transformation.1
         }
-        
+
         return scopedStore
     }
     
@@ -262,8 +262,8 @@ open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHan
         using: @escaping (Value) -> Action
     ) -> Binding<Value> {
         Binding(
-            get: { self.get(key) ?? fallback },
-            set: { self.handle(action: using($0)) }
+            get: { [weak self] in self?.get(key) ?? fallback },
+            set: { [weak self] in self?.handle(action: using($0)) }
         )
     }
     
@@ -274,11 +274,11 @@ open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHan
         using: @escaping (Value?) -> Action
     ) -> Binding<Value?> {
         Binding(
-            get: { self.get(key) },
-            set: { self.handle(action: using($0)) }
+            get: { [weak self] in self?.get(key) },
+            set: { [weak self] in self?.handle(action: using($0)) }
         )
     }
-    
+
     /// Creates a `Binding` for the given `Key` using an `Action` to set the value
     public func binding<ParentValue, Value>(
         _ key: Key,
@@ -287,11 +287,11 @@ open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHan
         using: @escaping (Value) -> Action
     ) -> Binding<Value> {
         Binding(
-            get: { transform(self.get(key, as: ParentValue.self)) },
-            set: { self.handle(action: using($0)) }
+            get: { [weak self] in transform(self?.get(key, as: ParentValue.self)) },
+            set: { [weak self] in self?.handle(action: using($0)) }
         )
     }
-    
+
     /// Creates a `Binding` for the given `Key`, where the value is Optional, using an `Action` to set the value
     public func optionalBinding<ParentValue, Value>(
         _ key: Key,
@@ -300,8 +300,8 @@ open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHan
         using: @escaping (Value?) -> Action
     ) -> Binding<Value?> {
         Binding(
-            get: { transform(self.get(key, as: ParentValue.self)) },
-            set: { self.handle(action: using($0)) }
+            get: { [weak self] in transform(self?.get(key, as: ParentValue.self)) },
+            set: { [weak self] in self?.handle(action: using($0)) }
         )
     }
 }
@@ -320,7 +320,7 @@ public extension Store where Dependency == Void {
             dependency: ()
         )
     }
-    
+
     /// Creates a `ScopedStore`
     func scope<ScopedKey: Hashable, ScopedAction>(
         keyTransformation: BiDirectionalTransformation<Key?, ScopedKey?>,
@@ -375,13 +375,13 @@ extension Store {
             cancel(id: actionEffect.id)
             let effectTask = Task { [weak self] in
                 defer { self?.cancel(id: actionEffect.id) }
-                
+
                 if Task.isCancelled { return }
-                
+
                 guard let nextAction = await actionEffect.effect() else { return }
-                
+
                 if Task.isCancelled { return }
-                
+
                 self?.handle(action: nextAction)
             }
             lock.lock()
@@ -396,7 +396,7 @@ extension Store {
                 --------------- State Output ------------
                 """
             )
-            
+
             if cacheStore.isCacheEqual(to: cacheStoreCopy) {
                 print("\t🙅 No State Change")
             } else {
@@ -422,7 +422,7 @@ extension Store {
                     )
                 }
             }
-            
+
             print(
                 """
                 --------------- State End ---------------
@@ -430,7 +430,7 @@ extension Store {
                 """
             )
         }
-        
+
         cacheStore.cache = cacheStoreCopy.cache
         
         return actionEffect
@@ -489,35 +489,34 @@ extension Store {
         {
             ForEach(0 ..< data.count, id: \.self) { datumIndex in
                 let value = data[datumIndex]
-                
-                content(
-                    self.scope(
-                        keyValueTransformation: (
-                            from: { (keyValue: (Key, [Value]?)?) in
-                                (scopedKey, value)
-                            },
-                            to: { (scopedKeyValue: (ScopedKey, Value?)?) in
-                                var mutatedData = data
-                                
-                                if let value = scopedKeyValue?.1 {
-                                    mutatedData[datumIndex] = value
-                                }
-                                
-                                return (key, mutatedData)
+                let store = self.scope(
+                    keyValueTransformation: (
+                        from: { (keyValue: (Key, [Value]?)?) in
+                            (scopedKey, value)
+                        },
+                        to: { (scopedKeyValue: (ScopedKey, Value?)?) in
+                            var mutatedData = data
+
+                            if let value = scopedKeyValue?.1 {
+                                mutatedData[datumIndex] = value
                             }
-                        ),
-                        actionHandler: actionHandler,
-                        dependencyTransformation: dependencyTransformation,
-                        defaultCache: defaultCache,
-                        actionTransformation: actionTransformation
-                    )
+
+                            return (key, mutatedData)
+                        }
+                    ),
+                    actionHandler: actionHandler,
+                    dependencyTransformation: dependencyTransformation,
+                    defaultCache: defaultCache,
+                    actionTransformation: actionTransformation
                 )
+
+                content(store)
             }
         } else {
             noContentView
         }
     }
-    
+
     @ViewBuilder
     public func listEach<Value: Hashable, ScopedKey: Hashable, ScopedAction, ScopedDependency>(
         key: Key,
