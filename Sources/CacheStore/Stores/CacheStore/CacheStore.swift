@@ -192,7 +192,7 @@ public extension CacheStore {
         let scopedCacheStore = ScopedKeyValueCacheStore(keyValueTransformation: keyValueTransformation)
 
         scopedCacheStore.cache = defaultCache
-//        scopedCacheStore.parentCacheStore = self
+        scopedCacheStore.parentCacheStore = self
 
         lock.lock()
         let cacheCopy = cache

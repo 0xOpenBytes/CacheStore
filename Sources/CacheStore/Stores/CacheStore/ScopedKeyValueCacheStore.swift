@@ -7,7 +7,7 @@
 
 class ScopedKeyValueCacheStore<Key: Hashable, Value, ScopedKey: Hashable, ScopedValue>: CacheStore<ScopedKey> {
     weak var parentCacheStore: CacheStore<Key>?
-    private var keyValueTransformation: BiDirectionalTransformation<(Key, Value?)?, (ScopedKey, ScopedValue?)?>
+    private var keyValueTransformation: BiDirectionalTransformation<(Key, Value?)?, (ScopedKey, ScopedValue?)?>?
 
     init(
         keyValueTransformation: BiDirectionalTransformation<(Key, Value?)?, (ScopedKey, ScopedValue?)?>
@@ -22,13 +22,16 @@ class ScopedKeyValueCacheStore<Key: Hashable, Value, ScopedKey: Hashable, Scoped
     override func set<Value>(value: Value, forKey key: ScopedKey) {
         super.set(value: value, forKey: key)
 
-        guard let transformation = keyValueTransformation.to((key, get(key))) else { return }
+        guard
+            let keyValueTransformation = keyValueTransformation,
+            let transformation = keyValueTransformation.to((key, get(key)))
+        else { return }
 
         parentCacheStore?.set(value: transformation.1, forKey: transformation.0)
     }
 
     override func copy() -> ScopedKeyValueCacheStore<Key, Value, ScopedKey, ScopedValue> {
-        let scopedCacheStore = ScopedKeyValueCacheStore<Key, Value, ScopedKey, ScopedValue>(keyValueTransformation: keyValueTransformation)
+        let scopedCacheStore = ScopedKeyValueCacheStore<Key, Value, ScopedKey, ScopedValue>(keyValueTransformation: keyValueTransformation!)
 
         scopedCacheStore.cache = cache
         scopedCacheStore.parentCacheStore = parentCacheStore
