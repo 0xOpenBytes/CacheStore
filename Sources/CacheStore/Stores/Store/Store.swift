@@ -10,7 +10,7 @@ open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHan
     private var isDebugging: Bool
     private var cacheStoreObserver: AnyCancellable?
     private var effects: [AnyHashable: Task<(), Never>]
-    private(set) unowned var cacheStore: CacheStore<Key>
+    private(set) var cacheStore: CacheStore<Key>
     private(set) var actionHandler: StoreActionHandler<Key, Action, Dependency>
     private let dependency: Dependency
     
