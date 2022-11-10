@@ -65,8 +65,8 @@ open class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
     /// Set the `Value` for the `Key`
     public func set<Value>(value: Value, forKey key: Key) {
         guard Thread.isMainThread else {
-            DispatchQueue.main.async {
-                self.set(value: value, forKey: key)
+            DispatchQueue.main.async { [weak self] in
+                self?.set(value: value, forKey: key)
             }
             return
         }
@@ -130,8 +130,8 @@ open class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
     /// Remove the value for the key
     public func remove(_ key: Key) {
         guard Thread.isMainThread else {
-            DispatchQueue.main.async {
-                self.remove(key)
+            DispatchQueue.main.async { [weak self] in
+                self?.remove(key)
             }
             return
         }
@@ -216,8 +216,8 @@ public extension CacheStore {
         fallback: Value
     ) -> Binding<Value> {
         Binding(
-            get: { self.get(key) ?? fallback },
-            set: { self.set(value: $0, forKey: key) }
+            get: { [weak self] in self?.get(key) ?? fallback },
+            set: { [weak self] in self?.set(value: $0, forKey: key) }
         )
     }
     
@@ -227,8 +227,8 @@ public extension CacheStore {
         as: Value.Type = Value.self
     ) -> Binding<Value?> {
         Binding(
-            get: { self.get(key) },
-            set: { self.set(value: $0, forKey: key) }
+            get: { [weak self] in self?.get(key) },
+            set: { [weak self] in self?.set(value: $0, forKey: key) }
         )
     }
 
@@ -239,8 +239,8 @@ public extension CacheStore {
         transform: @escaping (ParentValue?) -> Value
     ) -> Binding<Value> {
         Binding(
-            get: { transform(self.get(key, as: ParentValue.self)) },
-            set: { self.set(value: $0, forKey: key) }
+            get: { [weak self] in transform(self?.get(key, as: ParentValue.self)) },
+            set: { [weak self] in self?.set(value: $0, forKey: key) }
         )
     }
 
@@ -251,8 +251,8 @@ public extension CacheStore {
         transform: @escaping (ParentValue?) -> Value?
     ) -> Binding<Value?> {
         Binding(
-            get: { transform(self.get(key, as: ParentValue.self)) },
-            set: { self.set(value: $0, forKey: key) }
+            get: { [weak self] in transform(self?.get(key, as: ParentValue.self)) },
+            set: { [weak self] in self?.set(value: $0, forKey: key) }
         )
     }
 }
