@@ -10,7 +10,7 @@ open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHan
     private var isDebugging: Bool
     private var cacheStoreObserver: AnyCancellable?
     private var effects: [AnyHashable: Task<(), Never>]
-    private(set) var cacheStore: CacheStore<Key>
+    private(set) unowned var cacheStore: CacheStore<Key>
     private(set) var actionHandler: StoreActionHandler<Key, Action, Dependency>
     private let dependency: Dependency
     
@@ -219,7 +219,7 @@ open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHan
 
         scopedStore.cacheStore = scopedCacheStore
         scopedStore.parentStore = self
-        scopedStore.actionHandler = StoreActionHandler { [weak scopedStore, actionHandler] (store: inout CacheStore<ScopedKey>, action: ScopedAction, dependency: ScopedDependency) in
+        scopedStore.actionHandler = StoreActionHandler { [weak scopedStore] (store: inout CacheStore<ScopedKey>, action: ScopedAction, dependency: ScopedDependency) in
             let effect = actionHandler.handle(store: &store, action: action, dependency: dependency)
 
             if let parentAction = actionTransformation(action) {
