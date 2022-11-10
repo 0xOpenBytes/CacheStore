@@ -173,11 +173,11 @@ open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHan
         
         scopedStore.cacheStore = scopedCacheStore
         scopedStore.parentStore = self
-        scopedStore.actionHandler = StoreActionHandler { [weak scopedStore] (store: inout CacheStore<ScopedKey>, action: ScopedAction, dependency: ScopedDependency) in
+        scopedStore.actionHandler = StoreActionHandler { (store: inout CacheStore<ScopedKey>, action: ScopedAction, dependency: ScopedDependency) in
             let effect = actionHandler.handle(store: &store, action: action, dependency: dependency)
             
             if let parentAction = actionTransformation(action) {
-                scopedStore?.parentStore?.handle(action: parentAction)
+                scopedStore.parentStore?.handle(action: parentAction)
             }
             
             return effect
@@ -219,11 +219,11 @@ open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHan
 
         scopedStore.cacheStore = scopedCacheStore
         scopedStore.parentStore = self
-        scopedStore.actionHandler = StoreActionHandler { [weak scopedStore] (store: inout CacheStore<ScopedKey>, action: ScopedAction, dependency: ScopedDependency) in
+        scopedStore.actionHandler = StoreActionHandler { (store: inout CacheStore<ScopedKey>, action: ScopedAction, dependency: ScopedDependency) in
             let effect = actionHandler.handle(store: &store, action: action, dependency: dependency)
 
             if let parentAction = actionTransformation(action) {
-                scopedStore?.parentStore?.handle(action: parentAction)
+                scopedStore.parentStore?.handle(action: parentAction)
             }
 
             return effect
