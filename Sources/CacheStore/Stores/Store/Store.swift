@@ -113,8 +113,8 @@ open class Store<Key: Hashable, Action, Dependency>: ObservableObject, ActionHan
     /// Sends the action to be handled by the `Store`
     public func handle(action: Action) {
         guard Thread.isMainThread else {
-            DispatchQueue.main.async { [weak self] in
-                self?.handle(action: action)
+            DispatchQueue.main.async {
+                self.handle(action: action)
             }
             return
         }

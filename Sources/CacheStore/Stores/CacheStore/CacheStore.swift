@@ -65,8 +65,8 @@ open class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
     /// Set the `Value` for the `Key`
     public func set<Value>(value: Value, forKey key: Key) {
         guard Thread.isMainThread else {
-            DispatchQueue.main.async { [weak self] in
-                self?.set(value: value, forKey: key)
+            DispatchQueue.main.async {
+                self.set(value: value, forKey: key)
             }
             return
         }
@@ -130,8 +130,8 @@ open class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
     /// Remove the value for the key
     public func remove(_ key: Key) {
         guard Thread.isMainThread else {
-            DispatchQueue.main.async { [weak self] in
-                self?.remove(key)
+            DispatchQueue.main.async {
+                self.remove(key)
             }
             return
         }
