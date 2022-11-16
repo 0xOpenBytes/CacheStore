@@ -1,8 +1,9 @@
 import c
 
 public typealias BiDirectionalTransformation = c.BiDirectionalTransformation
+public typealias UniDirectionalTransformation = c.UniDirectionalTransformation
 
-class ScopedCacheStore<Key: Hashable, ScopedKey: Hashable>: CacheStore<ScopedKey> {
+class ScopedKeyCacheStore<Key: Hashable, ScopedKey: Hashable>: CacheStore<ScopedKey> {
     weak var parentCacheStore: CacheStore<Key>?
     private var keyTransformation: BiDirectionalTransformation<Key?, ScopedKey?>
     
@@ -24,8 +25,8 @@ class ScopedCacheStore<Key: Hashable, ScopedKey: Hashable>: CacheStore<ScopedKey
         parentCacheStore?.set(value: value, forKey: parentKey)
     }
     
-    override func copy() -> ScopedCacheStore<Key, ScopedKey> {
-        let scopedCacheStore = ScopedCacheStore<Key, ScopedKey>(keyTransformation: keyTransformation)
+    override func copy() -> ScopedKeyCacheStore<Key, ScopedKey> {
+        let scopedCacheStore = ScopedKeyCacheStore<Key, ScopedKey>(keyTransformation: keyTransformation)
         
         scopedCacheStore.cache = cache
         scopedCacheStore.parentCacheStore = parentCacheStore

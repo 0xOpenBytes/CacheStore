@@ -24,12 +24,12 @@ open class CacheStore<Key: Hashable>: ObservableObject, Cacheable {
     
     /// Get the `Value` for the `Key` if it exists
     public func get<Value>(_ key: Key, as: Value.Type = Value.self) -> Value? {
-        defer { lock.unlock() }
         lock.lock()
+        defer { lock.unlock() }
         guard let value = cache[key] as? Value else {
             return nil
         }
-        
+
         let mirror = Mirror(reflecting: value)
         
         if mirror.displayStyle != .optional {
@@ -168,7 +168,7 @@ public extension CacheStore {
         keyTransformation: BiDirectionalTransformation<Key?, ScopedKey?>,
         defaultCache: [ScopedKey: Any] = [:]
     ) -> CacheStore<ScopedKey> {
-        let scopedCacheStore = ScopedCacheStore(keyTransformation: keyTransformation)
+        let scopedCacheStore = ScopedKeyCacheStore(keyTransformation: keyTransformation)
         
         scopedCacheStore.cache = defaultCache
         scopedCacheStore.parentCacheStore = self
@@ -183,6 +183,31 @@ public extension CacheStore {
         
         return scopedCacheStore
     }
+
+    /// Creates a `ScopedCacheStore` with the given key value transformation and default cache
+    func scope<Value, ScopedValue, ScopedKey: Hashable>(
+        keyValueTransformation: BiDirectionalTransformation<(Key, Value?)?, (ScopedKey, ScopedValue?)?>,
+        defaultCache: [ScopedKey: Any] = [:]
+    ) -> CacheStore<ScopedKey> {
+        let scopedCacheStore = ScopedKeyValueCacheStore(keyValueTransformation: keyValueTransformation)
+
+        scopedCacheStore.cache = defaultCache
+        scopedCacheStore.parentCacheStore = self
+
+        lock.lock()
+        let cacheCopy = cache
+        lock.unlock()
+
+        cacheCopy.forEach { key, value in
+            guard
+                let transformation = keyValueTransformation.from((key, get(key, as: Value.self)))
+            else { return }
+
+            scopedCacheStore.cache[transformation.0] = transformation.1
+        }
+
+        return scopedCacheStore
+    }
     
     /// Creates a `Binding` for the given `Key`
     func binding<Value>(
@@ -191,8 +216,8 @@ public extension CacheStore {
         fallback: Value
     ) -> Binding<Value> {
         Binding(
-            get: { self.get(key) ?? fallback },
-            set: { self.set(value: $0, forKey: key) }
+            get: { [weak self] in self?.get(key) ?? fallback },
+            set: { [weak self] in self?.set(value: $0, forKey: key) }
         )
     }
     
@@ -202,8 +227,32 @@ public extension CacheStore {
         as: Value.Type = Value.self
     ) -> Binding<Value?> {
         Binding(
-            get: { self.get(key) },
-            set: { self.set(value: $0, forKey: key) }
+            get: { [weak self] in self?.get(key) },
+            set: { [weak self] in self?.set(value: $0, forKey: key) }
+        )
+    }
+
+    /// Creates a `Binding` for the given `Key` using a transformantion
+    func binding<ParentValue, Value>(
+        _ key: Key,
+        as: ParentValue.Type = ParentValue.self,
+        transform: @escaping (ParentValue?) -> Value
+    ) -> Binding<Value> {
+        Binding(
+            get: { [weak self] in transform(self?.get(key, as: ParentValue.self)) },
+            set: { [weak self] in self?.set(value: $0, forKey: key) }
+        )
+    }
+
+    /// Creates a `Binding` for the given `Key`, where the value is Optional using a transformantion
+    func optionalBinding<ParentValue, Value>(
+        _ key: Key,
+        as: Value.Type = Value.self,
+        transform: @escaping (ParentValue?) -> Value?
+    ) -> Binding<Value?> {
+        Binding(
+            get: { [weak self] in transform(self?.get(key, as: ParentValue.self)) },
+            set: { [weak self] in self?.set(value: $0, forKey: key) }
         )
     }
 }
